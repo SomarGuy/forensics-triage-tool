@@ -16,6 +16,21 @@ I'm teaching myself digital forensics for the GCFE, and this is where I put the 
 
 **Live demo (synthetic data):** https://forensics-triage-tool.vercel.app
 
+## How to use the demo
+
+The live page has a folder tab marked **"?" How to use this** at the top of the left-hand tabs, and a yellow "Start here" note the first time you visit. Both lead to the same guide. If you only have a minute:
+
+1. Stay on **The case** tab. Read the Case summary card and the "What happened, in order" strip. It is an invented insider case: files are gathered, an archive is renamed to look like a photo, copied to a USB stick, and the originals are deleted.
+2. Click the red **1 critical** stamp. "What I found" opens with one finding, `invoice_template.pdf`, whose hash is on a known-bad list. Notice "1 of 20 findings", then click **Start over** to see all twenty.
+3. Click the card **Extension does not match content: holiday_photos_2025.jpg**. The panel has "In short", "Why I flagged it" and "What to do about it". The file is named like a photo but it is a ZIP archive.
+4. In that panel, under "Files involved", click **holiday_photos_2025.jpg** to see its MD5, SHA-1 and SHA-256, what the bytes really are, and a note that an identical copy was recovered from deleted space. Press Close.
+5. Open **Deleted, then found** and click the first row, `CF-001`. It is a 6,342 byte ZIP carved from the raw disk image. It matches the "photo" on disk and a Recycle Bin record for `proj_backup.zip`.
+6. Open **Did I change anything?**, click **Check the chain here** (intact), then **Pretend someone edited an entry** and check again. It reports the chain is broken at entry 3. **Undo** puts it back.
+
+The guide also explains the terms on screen (hash, chain of custody, timestomping, file carving, IOC, MITRE ATT&CK and more) and has a short note on what the project says about my skills. Each step has a "Take me there" button. `scripts/dashboard_smoke.js` follows these exact steps at desktop and phone width, so the guide and the page can't drift apart.
+
+![The how to use this guide](screenshots/09-how-to-use.png)
+
 ## Why I made it
 
 When someone is suspected of taking data, the first few hours of a review look the same every time: hash everything, find files that aren't what their name says, look for dates that were changed, check what was deleted, see what got plugged in, and write it up so somebody else can check your work. Doing that by hand on a disk image is slow, and the one mistake you can't undo is changing the evidence while you look at it. I wanted to understand what a triage tool actually does: how to read artefacts without touching them, how to tell a copied file from a timestomped one, how carving works when there's no file table to trust, and how to keep a custody record that can be checked instead of just claimed.
@@ -111,7 +126,7 @@ python -m venv .venv
 pip install -r requirements-dev.txt        # pytest + pytest-cov (tests only)
 
 python -m forensictriage demo              # make the synthetic case, triage it, check it, refresh the dashboard data
-python -m pytest                           # 262 tests
+python -m pytest                           # 268 tests
 python -m http.server 8000 --directory dashboard    # then open http://localhost:8000
 ```
 
@@ -269,7 +284,7 @@ python -m pytest                                        # everything
 python -m pytest --cov=forensictriage --cov-report=term-missing
 ```
 
-262 tests, and line coverage of the `forensictriage` package is 99% (`pytest-cov`). Coverage only shows the code ran, not that it's right, so the tests are built around behaviour: hash test vectors, each signature and its mismatch rule, hand-built carving cases (nested headers, truncated files, bad CRCs, false headers), every timestomp indicator and the "an ordinary copy isn't flagged" case, a tamper test for each kind of evidence change (content changed with the mtime put back, size, mtime, mode, removed, added) and for the custody chain (edited, deleted, reordered entry, plus the truncated-tail gap), the CLI end to end with exit codes, the synthetic generator (deterministic, labelled, documentation-range IPs only), and the committed samples and dashboard, which have to equal what the code produces today. Some of those dashboard checks are plain file checks: no inline scripts, no `innerHTML`, fonts served locally with their licences, a strict CSP, and no em dashes in the text I wrote.
+268 tests, and line coverage of the `forensictriage` package is 99% (`pytest-cov`). Coverage only shows the code ran, not that it's right, so the tests are built around behaviour: hash test vectors, each signature and its mismatch rule, hand-built carving cases (nested headers, truncated files, bad CRCs, false headers), every timestomp indicator and the "an ordinary copy isn't flagged" case, a tamper test for each kind of evidence change (content changed with the mtime put back, size, mtime, mode, removed, added) and for the custody chain (edited, deleted, reordered entry, plus the truncated-tail gap), the CLI end to end with exit codes, the synthetic generator (deterministic, labelled, documentation-range IPs only), and the committed samples and dashboard, which have to equal what the code produces today. Some of those dashboard checks are plain file checks: no inline scripts, no `innerHTML`, fonts served locally with their licences, a strict CSP, and no em dashes in the text I wrote.
 
 A separate script, `scripts/dashboard_smoke.js`, drives the real page in headless Chrome: the folder tabs (mouse and arrow keys), filters, the board and list views, drill-downs, the timeline, the in-browser chain check and tamper detection, a phone-sized screen with no sideways scrolling, and a hostile `<script>` file name in an uploaded report staying inert.
 

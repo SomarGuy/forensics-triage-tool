@@ -85,6 +85,8 @@ a { color: var(--blue); }
 .tab:nth-child(3n+2) { background: #d9b45f; margin-right: -14px; }
 .tab:nth-child(3n) { background: #e0bc6c; margin-right: -11px; }
 .tab:hover { filter: brightness(1.06); }
+.tabs .tab.tab-guide { background: #f6e2ab; border: 1.5px dashed var(--red); border-left: 0; margin-right: -9px; margin-bottom: 6px; }
+.tab-guide .no { background: var(--red); border-color: var(--red); color: var(--paper); }
 .tab .no {
   flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border: 1.5px solid var(--ink-2); border-radius: 50%;
   font: 700 12px/1 var(--mono); color: var(--ink-2); background: rgba(255, 255, 255, .35);
@@ -320,7 +322,7 @@ details.rules summary .hint { margin: 0; }
 
 /* ------------------------------------------------------------------ drawer */
 .scrim { position: fixed; inset: 0; background: rgba(42, 33, 24, .45); z-index: 40; }
-.scrim[hidden], .drawer[hidden] { display: none; }
+.scrim[hidden], .drawer[hidden], .postit[hidden] { display: none; }
 .drawer {
   position: fixed; top: 0; right: 0; bottom: 0; width: min(640px, 100vw); z-index: 50; overflow: auto; background: var(--paper); border-left: 6px solid var(--manila-d); box-shadow: -12px 0 30px rgba(42, 33, 24, .35);
   background-image: radial-gradient(rgba(130, 95, 35, .07) 1px, transparent 1.2px); background-size: 7px 7px;
@@ -340,6 +342,35 @@ table.times { border-collapse: collapse; width: 100%; font: 12.5px/1.4 var(--mon
 table.times th, table.times td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; background: var(--card); }
 table.times thead th { background: var(--paper-2); font-size: 11px; }
 table.times td.diff { background: #fbe5c6; color: var(--red); font-weight: 700; }
+
+/* ------------------------------------------------------------------ guide page and the Start here sticky note */
+.postit {
+  position: relative; max-width: 780px; margin: 6px 0 22px 8px; padding: 22px 24px 14px; background: #fff3a0; border: 1px solid #dcc860;
+  box-shadow: 3px 4px 0 rgba(90, 60, 10, .22); transform: rotate(-.6deg); z-index: 2;
+}
+.postit .tape { top: -13px; left: 18%; }
+.postit .hand { font-size: 34px; margin: 0 0 4px; color: var(--red); }
+.postit p { margin: 0 0 6px; font-size: 15.5px; }
+.postit .btn-row { margin: 10px 0 8px; }
+.postit .meta { font-size: 12.5px; }
+.guide-lede { font-size: 17px; line-height: 1.6; max-width: 80ch; margin: 0 0 6px; }
+.walk { list-style: none; counter-reset: step; margin: 10px 0 0; padding: 0; display: grid; gap: 12px; max-width: 88ch; }
+.walk li {
+  counter-increment: step; position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+  padding: 14px 18px 14px 70px; box-shadow: 2px 3px 0 rgba(90, 60, 10, .14);
+}
+.walk li::before {
+  content: counter(step); position: absolute; left: 16px; top: 14px; width: 38px; height: 38px; display: grid; place-items: center;
+  border: 3px double var(--red); border-radius: 50%; color: var(--red); font: 700 18px/1 var(--mono); transform: rotate(-6deg);
+}
+.walk p { margin: 0 0 8px; }
+.walk b { font-weight: 700; }
+.walk .btn { font-size: 12.5px; padding: 6px 10px; }
+dl.gloss { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px 20px; margin: 10px 0 0; }
+dl.gloss > div { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--manila-d); padding: 8px 12px 10px; border-radius: 0 3px 3px 0; }
+dl.gloss dt { font: 700 13px/1.3 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--red); margin-bottom: 3px; }
+dl.gloss dd { margin: 0; font-size: 15px; line-height: 1.5; }
+.letter.skills { margin: 30px 0 4px; max-width: 80ch; }
 
 /* ------------------------------------------------------------------ footer */
 .foot { margin-top: 36px; padding-top: 14px; border-top: 1px dashed var(--ink-3); color: var(--ink-2); font-size: 13.5px; }
@@ -370,6 +401,10 @@ table.times td.diff { background: #fbe5c6; color: var(--red); font-weight: 700; 
   .board { padding: 24px 14px 20px; grid-template-columns: minmax(0, 1fr); }
   .letter { margin-left: 0; margin-right: 4px; padding: 22px 16px 14px; }
   .hide-sm { display: none; }
+  .postit { margin: 6px 0 16px; padding: 20px 16px 12px; transform: none; }
+  .walk li { padding: 12px 14px 12px 58px; } .walk li::before { left: 12px; top: 12px; width: 34px; height: 34px; font-size: 16px; }
+  .guide-lede { font-size: 16px; }
+  .postit .btn, .walk .btn { min-height: 40px; }
   .note-kpi { max-width: none; }
   .note-tl { margin-left: 0; }
   .page-head .meta, .page-head .seg { margin-left: 0; }
@@ -381,6 +416,6 @@ table.times td.diff { background: #fbe5c6; color: var(--red); font-weight: 700; 
 @media (prefers-reduced-motion: no-preference) {
   .tab, .btn, .ecard, .kpi { transition: transform .12s ease, box-shadow .12s ease, filter .12s ease; }
 }
-@media print { .spine, .scrim, .drawer { display: none; } .desk { display: block; } .page[hidden] { display: block; } }
+@media print { .spine, .scrim, .drawer, .postit { display: none; } .desk { display: block; } .page[hidden] { display: block; } }
 .toast { font: 700 13px/1.3 var(--mono); color: var(--green); }
 [hidden] { display: none !important; }

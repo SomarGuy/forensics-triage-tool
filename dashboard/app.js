@@ -9,7 +9,7 @@
   var SRC_COLOR = { "FILESYSTEM": "#25507a", "NTFS $FN": "#6a4a9a", "BROWSER": "#b0800b", "PREFETCH": "#2c7a3c",
                     "REGISTRY": "#a8346a", "MFT": "#bf5509", "DOCUMENT": "#15788a", "RECYCLE BIN": "#6b6354" };
   var INK = "#2a2118", INK2 = "#5d4e3a", GRID = "#dccfae";
-  var TABS = ["case", "timeline", "findings", "files", "clues", "recovered", "custody", "traces", "attack"];
+  var TABS = ["guide", "case", "timeline", "findings", "files", "clues", "recovered", "custody", "traces", "attack"];
   var tab = "case";
   var FLAG_SEV = { known_bad: "critical", timestomp_likely: "high", signature_mismatch: "medium", staging_dir: "medium",
                    timestamp_weak: "low", known_good: "ok", recycle_bin: "", browser_history: "" };
@@ -28,6 +28,29 @@
       tl: { mode: "window", off: {}, q: "", range: null },
       ioc: { type: "", scope: "", q: "" }
     };
+  }
+
+  // ------------------------------------------------------------------ guide: "Start here" sticky note, remembered dismissal, jump buttons
+  var GUIDE_KEY = "forensics-triage-guide-dismissed";
+  function storeGet() { try { return window.localStorage.getItem(GUIDE_KEY); } catch (e) { return null; } }
+  function storeSet() { try { window.localStorage.setItem(GUIDE_KEY, "1"); } catch (e) { /* private mode: it just comes back next visit */ } }
+  function openGuide() { goTab("guide"); var hd = $("guide-title"); hd.tabIndex = -1; hd.focus({ preventScroll: true }); }
+  function dismissStart() {
+    storeSet();
+    var st = $("start-here"), had = st.contains(document.activeElement);
+    st.hidden = true;
+    if (had) $("tab-guide").focus();
+  }
+  function wireGuide() {
+    $("start-here").hidden = !!storeGet();
+    $("start-open").addEventListener("click", openGuide);
+    $("start-dismiss").addEventListener("click", dismissStart);
+    var go = document.querySelectorAll("#page-guide .go");
+    for (var i = 0; i < go.length; i++) go[i].addEventListener("click", function (e) {
+      var name = e.currentTarget.getAttribute("data-go"); goTab(name);
+      var hd = $("page-" + name).querySelector("h2"); hd.tabIndex = -1; hd.focus({ preventScroll: true });
+    });
+    if (location.hash === "#guide") goTab("guide", true);
   }
 
   // ------------------------------------------------------------------ tabs (manila folder tabs on the left spine)
@@ -830,6 +853,7 @@
       $("f-board").hidden = mode !== "board"; $("f-list").hidden = mode !== "list";
     });
     wireTabs();
+    wireGuide();
     setupChart();
   }
 

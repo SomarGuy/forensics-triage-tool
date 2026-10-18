@@ -128,7 +128,7 @@ def test_readme_numbers_match_the_committed_report():
 # ------------------------------------------------------------------ case-file redesign
 EM_DASH = "\u2014"
 BUZZWORDS = ("leverage", "robust", "seamless", "cutting-edge", "comprehensive", "state-of-the-art", "synergy", "powerful", "best-in-class", "holistic")
-TAB_NAMES = ("case", "timeline", "findings", "files", "clues", "recovered", "custody", "traces", "attack")
+TAB_NAMES = ("guide", "case", "timeline", "findings", "files", "clues", "recovered", "custody", "traces", "attack")
 
 
 def test_every_folder_tab_has_a_matching_panel_and_only_the_first_is_open():
@@ -214,3 +214,71 @@ def test_every_panel_the_script_hides_or_shows_exists_and_the_board_and_list_sha
     assert "function goTab" in js and "renderFindings" in js and "function ecard" in js
     assert 'id="banner"' in html and "SYNTHETIC DATA." in html.split('id="banner"')[1].split("</div>")[0]
     assert "[hidden] { display: none !important; }" in (DASH / "style.css").read_text()
+
+
+# ------------------------------------------------------------------ the "How to use this" guide
+def _guide_section():
+    html = (DASH / "index.html").read_text()
+    start = html.index('id="page-guide"')
+    return html[start:html.index("</section>", html.index('id="skills-title"'))]
+
+
+def test_guide_tab_is_first_in_the_nav_and_the_case_still_opens_first():
+    html = (DASH / "index.html").read_text()
+    assert html.index('id="tab-guide"') < html.index('id="tab-case"')
+    assert "How to use this" in html.split('id="tab-case"')[0].split('id="tab-guide"')[1]
+    assert 'id="start-here"' in html and 'id="start-dismiss"' in html and 'id="start-open"' in html
+    assert re.search(r'<aside id="start-here"[^>]*\bhidden\b', html)        # shown by script only if it was not dismissed
+
+
+def test_guide_has_the_four_required_parts_and_six_steps():
+    g = _guide_section()
+    for heading in ("Try this in 60 seconds", "Words you will see", "What this shows about my skills"):
+        assert heading in g, heading
+    assert "forensics triage tool I wrote" in g                               # one-sentence what and why
+    assert len(re.findall(r"<li><p><b>", g)) == 6
+    for term in ("Hash (MD5, SHA-1, SHA-256)", "Chain of custody", "Hash chain", "Timestomping", "MACB", "File carving", "IOC (indicator of compromise)", "MITRE ATT&amp;CK", "UTC"):
+        assert f"<dt>{term}</dt>" in g, term
+
+
+def test_guide_steps_only_name_things_that_exist_in_the_data_and_ui():
+    g = _guide_section()
+    html = (DASH / "index.html").read_text()
+    rep = json.loads((REPORTS / "case_report.json").read_text())
+    titles = [f["title"] for f in rep["findings"]]
+    assert "Extension does not match content: holiday_photos_2025.jpg" in titles and "Extension does not match content: holiday_photos_2025.jpg" in g
+    assert rep["summary"]["by_severity"]["critical"] == 1 and "1 critical" in g and "1 of 20 findings" in g and len(titles) == 20
+    crit = [f for f in rep["findings"] if f["severity"] == "critical"][0]
+    assert "invoice_template.pdf" in crit["title"] and "invoice_template.pdf" in g
+    cf1 = rep["carved"]["files"][0]
+    assert cf1["id"] == "CF-001" and f"{cf1['length']:,}" in g and "CF-001" in g
+    assert "proj_backup.zip" in json.dumps(cf1) and "holiday_photos_2025.jpg" in json.dumps(cf1)
+    for label in ("Check the chain here", "Pretend someone edited an entry", "Undo", "Start over", "Take me there", "Files involved", "Why I flagged it", "What to do about it", "In short"):
+        assert label in html or label in (DASH / "app.js").read_text(), label
+    assert "entry 3" in g and "chainEntries[2]" in (DASH / "app.js").read_text()   # the tamper button edits entry 3
+    for tab in re.findall(r'data-go="(\w+)"', g):
+        assert f'id="tab-{tab}"' in html, tab
+
+
+def test_start_here_dismissal_is_remembered_and_storage_failures_are_survivable():
+    js = (DASH / "app.js").read_text()
+    assert "forensics-triage-guide-dismissed" in js and "localStorage" in js
+    assert re.search(r"function storeGet\(\) \{ try \{", js) and re.search(r"function storeSet\(\) \{ try \{", js)
+    assert "wireGuide" in js and "function openGuide" in js
+
+
+def test_guide_is_responsive_and_copy_is_plain():
+    css = (DASH / "style.css").read_text()
+    assert ".walk" in css and "dl.gloss" in css and ".postit" in css and "min-height: 40px" in css
+    g = _guide_section().lower()
+    for word in BUZZWORDS + ("vibe",):
+        assert word not in g, word
+    assert EM_DASH not in g
+
+
+def test_readme_documents_the_guide():
+    readme = (ROOT / "README.md").read_text()
+    assert "## How to use the demo" in readme
+    section = readme[readme.index("## How to use the demo"):readme.index("## Why I made it")]
+    for needle in ("holiday_photos_2025.jpg", "CF-001", "Check the chain here", "Pretend someone edited an entry", "1 critical"):
+        assert needle in section, needle

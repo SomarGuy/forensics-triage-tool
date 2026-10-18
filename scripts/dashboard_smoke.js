@@ -14,7 +14,11 @@ const report = JSON.parse(fs.readFileSync("dashboard/data/case.json", "utf8"));
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROME || "/usr/bin/google-chrome", args: ["--no-sandbox"] });
   const errors = [];
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  // the existing checks and screenshots run as a returning visitor who already dismissed the Start here note
+  const dismissed = () => { try { localStorage.setItem("forensics-triage-guide-dismissed", "1"); } catch (e) { /* ignore */ } };
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  await ctx.addInitScript(dismissed);
+  const page = await ctx.newPage();
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
   page.on("pageerror", (e) => errors.push(String(e)));
   let dialogs = 0;
@@ -26,10 +30,10 @@ const report = JSON.parse(fs.readFileSync("dashboard/data/case.json", "utf8"));
   const tab = async (name) => { await page.click("#tab-" + name); await page.waitForSelector("#page-" + name + ":not([hidden])"); };
 
   // ---- the case file: tabs, banner, personal note
-  const tabNames = ["case", "timeline", "findings", "files", "clues", "recovered", "custody", "traces", "attack"];
-  assert.strictEqual(await page.locator('[role="tab"]').count(), tabNames.length, "nine folder tabs");
+  const tabNames = ["guide", "case", "timeline", "findings", "files", "clues", "recovered", "custody", "traces", "attack"];
+  assert.strictEqual(await page.locator('[role="tab"]').count(), tabNames.length, "ten folder tabs (the guide is the first)");
   assert.strictEqual(await page.locator('.page:not([hidden])').count(), 1, "only the open page is visible");
-  assert.strictEqual(await page.getAttribute("#tab-case", "aria-selected"), "true", "first tab selected");
+  assert.strictEqual(await page.getAttribute("#tab-case", "aria-selected"), "true", "The case is still the page that opens");
   const why = await page.locator("#why-title").locator("xpath=..").textContent();
   assert(/Toronto/.test(why) && /GCFE/.test(why) && /Diogo/.test(why), "personal note present");
   assert(!/\u2014/.test(why), "no em dash in the personal note");
@@ -202,7 +206,9 @@ const report = JSON.parse(fs.readFileSync("dashboard/data/case.json", "utf8"));
   fs.unlinkSync(tmp);
 
   // ---- mobile
-  const m = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  const mctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+  await mctx.addInitScript(dismissed);
+  const m = await mctx.newPage();
   m.on("pageerror", (e) => errors.push("mobile: " + e));
   m.on("console", (x) => { if (x.type() === "error") errors.push("mobile: " + x.text()); });
   await m.goto(base + "/", { waitUntil: "networkidle" });
@@ -215,6 +221,89 @@ const report = JSON.parse(fs.readFileSync("dashboard/data/case.json", "utf8"));
   assert((await m.evaluate(() => document.documentElement.scrollWidth)) <= 392, "no horizontal overflow on the mobile board");
   await m.screenshot({ path: outDir + "/08-mobile-board.png" });
   for (const n of ["files", "recovered", "custody", "traces"]) { await m.click("#tab-" + n); assert((await m.evaluate(() => document.documentElement.scrollWidth)) <= 392, "no overflow on mobile tab " + n); }
+
+  // ---- the "How to use this" guide: Start here note, remembered dismissal, and every step in the guide really works
+  async function guideWalk(vp, shot) {
+    const gctx = await browser.newContext({ viewport: vp, deviceScaleFactor: vp.width < 500 ? 2 : 1 });
+    const g = await gctx.newPage();
+    g.on("console", (x) => { if (x.type() === "error") errors.push("guide: " + x.text()); });
+    g.on("pageerror", (e) => errors.push("guide: " + e));
+    const grows = (sel) => g.locator(sel + " tbody tr").count();
+    const gtab = async (name) => { await g.click("#tab-" + name); await g.waitForSelector("#page-" + name + ":not([hidden])"); };
+    const noOverflow = async (why) => assert((await g.evaluate(() => document.documentElement.scrollWidth)) <= vp.width + 2, "no horizontal overflow: " + why);
+    await g.goto(base + "/", { waitUntil: "networkidle" });
+    await g.waitForSelector("#f-table tbody tr", { state: "attached" });
+    assert(await g.locator("#start-here").isVisible(), "Start here note shows on a first visit");
+    await noOverflow("first visit");
+    await g.click("#start-dismiss");
+    assert(await g.locator("#start-here").isHidden(), "dismiss hides the note");
+    await g.reload({ waitUntil: "networkidle" });
+    await g.waitForSelector("#f-table tbody tr", { state: "attached" });
+    assert(await g.locator("#start-here").isHidden(), "dismissal is remembered after a reload");
+    assert(await g.locator("#tab-guide").isVisible(), "the guide tab is always in the nav");
+    assert((await g.locator("#tab-guide").textContent()).includes("How to use this"), "tab label");
+    await g.click("#tab-guide");
+    assert(await g.locator("#page-guide").isVisible(), "guide opens");
+    await noOverflow("guide page");
+    assert.strictEqual(await g.locator("#page-guide .walk > li").count(), 6, "six steps");
+    for (const w of ["Try this in 60 seconds", "Words you will see", "What this shows about my skills"]) assert((await g.locator("#page-guide").textContent()).includes(w), w);
+    assert((await g.locator("#page-guide .gloss dt").count()) >= 12, "glossary terms");
+    if (vp.width < 500) await g.evaluate(() => document.getElementById("walk-title").scrollIntoView());
+    await g.screenshot({ path: outDir + "/" + shot });
+    // keyboard: the guide tab is reachable with the arrow keys from the selected tab
+    await gtab("case");
+    await g.focus("#tab-case"); await g.keyboard.press("ArrowUp");
+    assert.strictEqual(await g.getAttribute("#tab-guide", "aria-selected"), "true", "ArrowUp reaches the guide tab");
+    // step 1: the case tab
+    await g.locator("#page-guide .go").first().click();
+    assert(await g.locator("#page-case").isVisible(), "step 1: Take me there opens The case");
+    assert(/Case summary/i.test(await g.locator("#page-case").textContent()) && (await g.locator("#story li").count()) >= 10, "step 1: summary card and story strip");
+    // step 2: the red critical stamp
+    await g.click('.kpi[data-sev="critical"]');
+    await g.waitForSelector("#page-findings:not([hidden])");
+    assert.strictEqual((await g.locator("#f-count").textContent()).trim(), "1 of 20 findings", "step 2: 1 of 20 findings");
+    assert(/invoice_template\.pdf/.test(await g.locator("#f-board").textContent()) && /known-bad hash/.test(await g.locator("#f-board").textContent()), "step 2: the known-bad PDF");
+    await g.click("#f-reset");
+    assert.strictEqual(await g.locator("#f-board .ecard").count(), 20, "step 2: Start over shows all twenty");
+    // step 3: the holiday photo card
+    await g.locator("#f-board .ecard", { hasText: "Extension does not match content: holiday_photos_2025.jpg" }).click();
+    await g.waitForSelector("#drawer:not([hidden])");
+    const dtxt = await g.locator("#drawer").innerText();
+    for (const w of ["In short", "Why I flagged it", "What to do about it", "ZIP archive disguised as .jpg", "Files involved"]) assert(dtxt.toLowerCase().includes(w.toLowerCase()), "step 3: " + w);
+    // step 4: the file chip
+    await g.locator("#drawer-body .chip-btn", { hasText: "holiday_photos_2025.jpg" }).click();
+    const ftxt = await g.locator("#drawer").innerText();
+    for (const w of ["MD5", "SHA-1", "SHA-256", "ZIP archive", "AN IDENTICAL COPY WAS RECOVERED FROM DELETED SPACE"]) assert(ftxt.toUpperCase().includes(w.toUpperCase()), "step 4: " + w);
+    await g.click("#d-close");
+    assert(await g.locator("#drawer").isHidden(), "step 4: Close closes the panel");
+    // step 5: CF-001
+    await gtab("recovered");
+    await g.locator("#carve-table tbody tr").first().click();
+    await g.waitForSelector("#drawer:not([hidden])");
+    const cf1 = await g.locator("#drawer").innerText();
+    assert(/CF-001/.test(cf1) && /6,342/.test(cf1) && /holiday_photos_2025\.jpg/.test(cf1) && /proj_backup\.zip/.test(cf1) && /MEMBER COUNT\s+3/.test(cf1), "step 5: CF-001 panel: " + JSON.stringify(cf1));
+    await g.click("#d-close");
+    // step 6: tamper test
+    await gtab("custody");
+    await g.click("#chain-verify");
+    await g.waitForFunction(() => /Chain intact/.test(document.getElementById("chain-result").textContent));
+    await g.click("#chain-tamper");
+    await g.click("#chain-verify");
+    await g.waitForFunction(() => /Chain BROKEN at entry 3/.test(document.getElementById("chain-result").textContent));
+    await g.click("#chain-reset");
+    assert.strictEqual((await g.locator("#chain-result").textContent()).trim(), "", "step 6: Undo clears the result");
+    // the Start here note comes back when storage is cleared and its button opens the guide
+    await g.evaluate(() => localStorage.clear());
+    await g.reload({ waitUntil: "networkidle" });
+    await g.waitForSelector("#f-table tbody tr", { state: "attached" });
+    assert(await g.locator("#start-here").isVisible(), "note returns when storage is cleared");
+    await g.focus("#start-open"); await g.keyboard.press("Enter");
+    assert(await g.locator("#page-guide").isVisible(), "Start here button opens the guide from the keyboard");
+    assert.strictEqual(await g.evaluate(() => document.activeElement.id), "guide-title", "focus moves to the guide heading");
+    await gctx.close();
+  }
+  await guideWalk({ width: 1440, height: 900 }, "09-how-to-use.png");
+  await guideWalk({ width: 390, height: 844 }, "10-how-to-use-mobile.png");
 
   assert.deepStrictEqual(errors, [], "no console errors: " + errors.join("; "));
   console.log("dashboard smoke test OK:", { findings: report.findings.length, files: report.files.length, flaggedOnly: flagged, techniqueFilter: t });
