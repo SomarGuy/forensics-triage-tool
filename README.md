@@ -44,6 +44,9 @@ Real screenshots of the dashboard in headless Chrome, taken by `scripts/dashboar
 **Chain of custody, after editing one log entry in memory and re-verifying**
 ![Chain of custody](screenshots/05-chain-of-custody.png)
 
+**The deployed copy on Vercel (headless Chrome, no console errors)**
+![Live on Vercel](screenshots/06-live-vercel.png)
+
 **On a phone-sized screen**
 <img src="screenshots/04-mobile.png" alt="Mobile dashboard" width="260">
 
