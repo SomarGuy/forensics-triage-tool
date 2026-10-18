@@ -1,13 +1,16 @@
-/* Digital Forensics Triage dashboard. Vanilla JS, no dependencies, no HTML string injection: every value is
+/* Forensics triage dashboard (case-file edition). Vanilla JS, no dependencies, no HTML string injection: every value is
    inserted with textContent, because evidence contains attacker-controlled strings (file names, URLs, <script> ...). */
 (function () {
   "use strict";
 
   var SEV = ["critical", "high", "medium", "low"];
   var SEV_RANK = { critical: 4, high: 3, medium: 2, low: 1 };
-  var SEV_COLOR = { critical: "#ff4d6d", high: "#ff8a3d", medium: "#f5c542", low: "#5aa9ff" };
-  var SRC_COLOR = { "FILESYSTEM": "#5aa9ff", "NTFS $FN": "#a78bfa", "BROWSER": "#f5c542", "PREFETCH": "#4ade80",
-                    "REGISTRY": "#f472b6", "MFT": "#fb923c", "DOCUMENT": "#22d3ee", "RECYCLE BIN": "#94a3b8" };
+  var SEV_COLOR = { critical: "#a8281f", high: "#bf5509", medium: "#8f6a00", low: "#25507a" };
+  var SRC_COLOR = { "FILESYSTEM": "#25507a", "NTFS $FN": "#6a4a9a", "BROWSER": "#b0800b", "PREFETCH": "#2c7a3c",
+                    "REGISTRY": "#a8346a", "MFT": "#bf5509", "DOCUMENT": "#15788a", "RECYCLE BIN": "#6b6354" };
+  var INK = "#2a2118", INK2 = "#5d4e3a", GRID = "#dccfae";
+  var TABS = ["case", "timeline", "findings", "files", "clues", "recovered", "custody", "traces", "attack"];
+  var tab = "case";
   var FLAG_SEV = { known_bad: "critical", timestomp_likely: "high", signature_mismatch: "medium", staging_dir: "medium",
                    timestamp_weak: "low", known_good: "ok", recycle_bin: "", browser_history: "" };
   var FLAGGED = ["known_bad", "signature_mismatch", "timestomp_likely", "timestamp_weak", "staging_dir", "recycle_bin"];   // same set the engine counts as "flagged"
@@ -25,6 +28,30 @@
       tl: { mode: "window", off: {}, q: "", range: null },
       ioc: { type: "", scope: "", q: "" }
     };
+  }
+
+  // ------------------------------------------------------------------ tabs (manila folder tabs on the left spine)
+  function goTab(name, noScroll) {
+    if (TABS.indexOf(name) < 0) name = "case";
+    tab = name;
+    TABS.forEach(function (t) {
+      var on = t === name, btn = $("tab-" + t), pg = $("page-" + t);
+      btn.setAttribute("aria-selected", on ? "true" : "false"); btn.tabIndex = on ? 0 : -1; pg.hidden = !on;
+    });
+    if (name === "timeline" && data) drawChart();           // the canvas has no size while its page is hidden
+    if (!noScroll) { var top = $("sheet").getBoundingClientRect().top + window.pageYOffset - 10; if (window.pageYOffset > top) window.scrollTo(0, Math.max(0, top)); }
+  }
+  function wireTabs() {
+    var btns = $("tabs").querySelectorAll("button.tab");
+    for (var i = 0; i < btns.length; i++) (function (b, idx) {
+      b.addEventListener("click", function () { goTab(b.getAttribute("data-tab")); });
+      b.addEventListener("keydown", function (e) {
+        var d = (e.key === "ArrowDown" || e.key === "ArrowRight") ? 1 : (e.key === "ArrowUp" || e.key === "ArrowLeft") ? -1 : e.key === "Home" ? -99 : e.key === "End" ? 99 : 0;
+        if (!d) return; e.preventDefault();
+        var n = Math.abs(d) === 99 ? (d < 0 ? 0 : btns.length - 1) : (idx + d + btns.length) % btns.length;
+        btns[n].focus(); goTab(btns[n].getAttribute("data-tab"), true);
+      });
+    })(btns[i], i);
   }
 
   // ------------------------------------------------------------------ DOM helpers
@@ -48,7 +75,7 @@
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
   function sevBadge(sev) { return h("span", { class: "sev-badge sev-" + sev, text: sev }); }
   function td(content, cls) { return h("td", cls ? { class: cls } : null, [content]); }
-  function srcTag(s) { var e = h("span", { class: "src", text: s }); e.style.setProperty("--c", SRC_COLOR[s] || "#8b9bb8"); return e; }
+  function srcTag(s) { var e = h("span", { class: "src", text: s }); e.style.setProperty("--c", SRC_COLOR[s] || "#7a6e5a"); return e; }
   function flagTag(f) { return h("span", { class: "flag" + (FLAG_SEV[f] ? " f-" + FLAG_SEV[f] : ""), text: f }); }
   function num(n) { return Number(n).toLocaleString("en-US"); }
   function bytes(n) {
@@ -83,8 +110,8 @@
       return r.json();
     }).then(init).catch(function (err) {
       showError("Could not load " + url + " (" + err.message + "). If you opened index.html directly from disk, browsers block fetch() on file:// URLs: " +
-        "run `python -m http.server` in this folder, or use \"Load your own case_report.json\" above.");
-      $("dataset-meta").textContent = "No data loaded";
+        "run `python -m http.server` in this folder, or use \"Open your own case_report.json\" on the left.");
+      $("dataset-meta").textContent = "Folder is empty";
     });
   }
   function showError(msg) { var e = $("error"); e.textContent = msg; e.hidden = false; }
@@ -119,11 +146,11 @@
     buildCarved(); buildIntegrity(); buildArtifacts(); buildMitre(); buildRules();
     renderAll();
     var m = /finding=([A-Za-z0-9-]+)/.exec(location.hash);
-    if (m) { var f = findingById(m[1]); if (f) openFinding(f); }
+    if (m) { var f = findingById(m[1]); if (f) { goTab("findings", true); openFinding(f); } }
   }
   function findingById(id) { for (var i = 0; i < data.findings.length; i++) if (data.findings[i].id === id) return data.findings[i]; return null; }
   function fileByPath(p) { for (var i = 0; i < data.files.length; i++) if (data.files[i].path === p) return data.files[i]; return null; }
-  function renderAll() { renderFindings(); renderFiles(); renderTimeline(); renderIocs(); }
+  function renderAll() { renderFindings(); renderFiles(); renderTimeline(); renderIocs(); if (tab === "timeline") drawChart(); }
 
   // ------------------------------------------------------------------ static sections
   function buildBanner() {
@@ -136,11 +163,11 @@
     } else {
       b.className = "banner real";
       b.firstElementChild.textContent = "YOUR DATA.";
-      $("banner-text").textContent = " This report was loaded from your own file and is not labelled synthetic. Processing happens entirely in your browser; nothing is uploaded.";
+      $("banner-text").textContent = " This report came from your own file and is not labelled synthetic. Everything happens in your browser and nothing is uploaded.";
     }
     var s = data.summary;
     $("dataset-meta").textContent = (meta.case_id || "case") + " · " + num(s.files) + " files · " + num(s.timeline_events) + " timeline events";
-    $("foot-meta").textContent = "Report generated " + meta.generated_at + " by " + meta.tool + " v" + meta.version + " · case " + meta.case_id +
+    $("foot-meta").textContent = "Report written " + meta.generated_at + " by " + meta.tool + " v" + meta.version + " · case " + meta.case_id +
       " · raw images: " + (meta.raw_images || []).join(", ");
   }
 
@@ -156,12 +183,12 @@
     var box = $("kpis"); clear(box);
     var s = data.summary, sc = s.by_severity || {};
     SEV.forEach(function (sev) {
-      box.appendChild(kpi(sc[sev] || 0, sev, { sev: sev, id: "kpi-" + sev, onclick: function () { toggleSev(sev); document.getElementById("findings-title").scrollIntoView({ behavior: "smooth", block: "start" }); } }));
+      box.appendChild(kpi(sc[sev] || 0, sev, { sev: sev, id: "kpi-" + sev, onclick: function () { toggleSev(sev); goTab("findings"); } }));
     });
-    box.appendChild(kpi(s.flagged_files + " / " + s.files, "files flagged", { onclick: function () { state.fl.only = true; $("fl-only").checked = true; renderFiles(); $("files-title").scrollIntoView({ behavior: "smooth", block: "start" }); } }));
-    box.appendChild(kpi((s.carved_complete || 0) + (s.carved_partial ? " + " + s.carved_partial : ""), "carved files (complete + partial)", { onclick: function () { $("carve-title").scrollIntoView({ behavior: "smooth", block: "start" }); } }));
+    box.appendChild(kpi(s.flagged_files + " / " + s.files, "files look odd", { small: true, onclick: function () { state.fl.only = true; $("fl-only").checked = true; renderFiles(); goTab("files"); } }));
+    box.appendChild(kpi((s.carved_complete || 0) + (s.carved_partial ? " + " + s.carved_partial : ""), "deleted files found (whole + partial)", { small: true, onclick: function () { goTab("recovered"); } }));
     var ok = data.integrity.ok && data.integrity.custody_chain_ok;
-    box.appendChild(kpi(ok ? "UNCHANGED" : "CHANGED", "evidence integrity", { sev: ok ? "ok" : "bad", small: true, onclick: function () { $("integrity-title").scrollIntoView({ behavior: "smooth", block: "start" }); } }));
+    box.appendChild(kpi(ok ? "UNCHANGED" : "CHANGED", "evidence", { sev: ok ? "ok" : "bad", small: true, onclick: function () { goTab("custody"); } }));
     syncKpis();
   }
   function syncKpis() {
@@ -178,20 +205,29 @@
     row("Examiner", m.examiner || "n/a");
     row("Evidence acquired", m.evidence_acquired_at || "n/a");
     row("Evidence root", m.evidence_root || "n/a");
-    row("Analysis window", data.window.start + " → " + data.window.end);
-    row("Evidence integrity", data.integrity.ok ? "verified unchanged (" + num(data.integrity.before.files || 0) + " files hashed before and after)" : "CHANGED during analysis");
+    row("Incident window", data.window.start + " → " + data.window.end);
+    row("Did it change?", data.integrity.ok ? "No. " + num(data.integrity.before.files || 0) + " files hashed before and after" : "YES, during analysis");
     var st = $("case-stats"); clear(st);
-    [[s.files, "files"], [bytes(s.bytes), "evidence size"], [s.findings, "findings"], [s.known_bad, "known-bad hits"], [s.signature_mismatches, "renamed / mismatched"],
-     [s.timestomp_likely, "timestomped"], [s.iocs + " (" + s.iocs_external + " ext.)", "IOCs"], [s.usb_devices, "USB devices"], [s.browser_visits, "browser visits"], [s.techniques, "ATT&CK techniques"]
+    [[s.files, "files"], [bytes(s.bytes), "of evidence"], [s.findings, "findings"], [s.known_bad, "known-bad files"], [s.signature_mismatches, "files in disguise"],
+     [s.timestomp_likely, "faked dates"], [s.iocs + " (" + s.iocs_external + " outside)", "clues"], [s.usb_devices, "USB sticks"], [s.browser_visits, "browser visits"], [s.techniques, "ATT&CK techniques"]
     ].forEach(function (p) { st.appendChild(h("div", { class: "stat" }, [h("b", { text: String(p[0]) }), h("span", { text: p[1] })])); });
+  }
+  function gapText(ms) {
+    var m = Math.round(ms / 60000), d = Math.floor(m / 1440), hh = Math.floor((m % 1440) / 60), mm = m % 60;
+    if (d >= 1) return d + (d === 1 ? " day" : " days") + (hh ? " " + hh + "h" : "");
+    return hh ? hh + "h" + (mm ? " " + mm + "m" : "") : mm + " min";
   }
   function buildStory() {
     var ol = $("story"); clear(ol);
+    var prev = null;
     data.narrative.slice().sort(function (a, b) { return a.ms - b.ms; }).forEach(function (n) {
       var b = h("button", { type: "button", onclick: function () { var f = findingById(n.finding); if (f) openFinding(f); } }, [
         h("time", { text: utc(n.ms) }), h("span", { text: n.title })]);
-      b.style.setProperty("--c", SEV_COLOR[n.severity] || "#8b9bb8");
-      ol.appendChild(h("li", null, [b]));
+      var li = h("li", null, [b]);
+      li.style.setProperty("--c", SEV_COLOR[n.severity] || "#7a6e5a");
+      if (prev !== null && n.ms - prev >= 600000) li.insertBefore(h("span", { class: "gap", text: gapText(n.ms - prev) + " later" }), b);
+      prev = n.ms;
+      ol.appendChild(li);
     });
   }
 
@@ -202,7 +238,7 @@
     sources().forEach(function (s) {
       var b = h("button", { type: "button", "aria-pressed": state.tl.off[s] ? "false" : "true", text: s, onclick: function () {
         state.tl.off[s] = !state.tl.off[s]; b.setAttribute("aria-pressed", state.tl.off[s] ? "false" : "true"); state.tl.range = null; renderTimeline(); } });
-      b.style.setProperty("--c", SRC_COLOR[s] || "#8b9bb8");
+      b.style.setProperty("--c", SRC_COLOR[s] || "#7a6e5a");
       lg.appendChild(b);
     });
     var seg = $("tl-mode").querySelectorAll("button");
@@ -277,12 +313,13 @@
   }
   function drawChart() {
     var cv = $("timeline"), g = chartGeom(cv), dpr = window.devicePixelRatio || 1;
+    if (g.w < 20 || !bins.length) return;                 // page hidden or nothing to draw yet
     cv.width = Math.max(1, Math.round(g.w * dpr)); cv.height = Math.max(1, Math.round(g.h * dpr));
     var ctx = cv.getContext("2d"); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, g.w, g.h);
     var pw = g.w - g.l - g.r, ph = g.h - g.t - g.b, n = bins.length;
     var max = 1; bins.forEach(function (b) { max = Math.max(max, b.total); });
     max = Math.ceil(max / 4) * 4 || 4;
-    ctx.font = "11px system-ui, sans-serif"; ctx.textBaseline = "middle"; ctx.fillStyle = "#93a4c3"; ctx.strokeStyle = "#22304f"; ctx.lineWidth = 1;
+    ctx.font = "11px \"Courier Prime\", \"Courier New\", monospace"; ctx.textBaseline = "middle"; ctx.fillStyle = INK2; ctx.strokeStyle = GRID; ctx.lineWidth = 1;
     for (var t = 0; t <= 4; t++) {
       var y = g.t + ph - (ph * t) / 4;
       ctx.beginPath(); ctx.moveTo(g.l, y + .5); ctx.lineTo(g.l + pw, y + .5); ctx.stroke();
@@ -294,17 +331,17 @@
       srcs.forEach(function (s) {
         var c = b.c[s]; if (!c) return;
         var hh = (c / max) * ph; base -= hh;
-        ctx.fillStyle = SRC_COLOR[s] || "#8b9bb8"; ctx.globalAlpha = (state.tl.range && !sel) ? .35 : 1;
+        ctx.fillStyle = SRC_COLOR[s] || "#7a6e5a"; ctx.globalAlpha = (state.tl.range && !sel) ? .35 : 1;
         ctx.fillRect(x + gap / 2, base, Math.max(1, bw - gap), hh);
       });
       ctx.globalAlpha = 1;
-      if (i === hoverBin || sel) { ctx.strokeStyle = "#ffffff"; ctx.strokeRect(x + .5, g.t, Math.max(1, bw - 1), ph); ctx.strokeStyle = "#22304f"; }
+      if (i === hoverBin || sel) { ctx.strokeStyle = INK; ctx.lineWidth = 1.5; ctx.strokeRect(x + .5, g.t, Math.max(1, bw - 1), ph); ctx.lineWidth = 1; ctx.strokeStyle = GRID; }
       b.findings.forEach(function (f, k) {            // finding markers along the top
         ctx.fillStyle = SEV_COLOR[f.severity]; var cx = x + bw / 2, cy = 6 + (k % 2) * 7;
         ctx.beginPath(); ctx.moveTo(cx - 4, cy - 3); ctx.lineTo(cx + 4, cy - 3); ctx.lineTo(cx, cy + 4); ctx.closePath(); ctx.fill();
       });
     });
-    ctx.fillStyle = "#93a4c3"; ctx.textBaseline = "top"; ctx.strokeStyle = "#22304f";
+    ctx.fillStyle = INK2; ctx.textBaseline = "top"; ctx.strokeStyle = INK2;
     var lo = bins[0].lo, hi = bins[n - 1].hi, span = hi - lo, H = 3600000, D = 86400000, steps = [6 * H, 12 * H, D, 2 * D, 7 * D, 30 * D], step = 30 * D, k2;
     for (k2 = 0; k2 < steps.length; k2++) if (pw * steps[k2] / span >= 84) { step = steps[k2]; break; }
     var tickMs = [], t0;
@@ -312,7 +349,7 @@
     else for (t0 = Math.ceil(lo / step) * step; t0 < hi; t0 += step) tickMs.push(t0);
     var lastX = -100;
     tickMs.forEach(function (tm) {
-      var x = g.l + ((tm - lo) / span) * pw; if (x - lastX < 60) return; lastX = x;
+      var x = g.l + ((tm - lo) / span) * pw; if (x - lastX < 84 || x < g.l + 36 || x > g.l + pw - 36) return; lastX = x;
       ctx.beginPath(); ctx.moveTo(x + .5, g.t + ph); ctx.lineTo(x + .5, g.t + ph + 4); ctx.stroke();
       var dd = new Date(tm), lab = step >= 30 * D ? MONTHS[dd.getUTCMonth()] + " " + dd.getUTCFullYear() : axisLabel(tm, step < D);
       ctx.textAlign = "center"; ctx.fillText(lab, Math.min(Math.max(x, g.l + 24), g.l + pw - 24), g.t + ph + 7);
@@ -347,7 +384,7 @@
       state.tl.range = (state.tl.range && state.tl.range[0] === b.lo) ? null : [b.lo, b.hi];
       renderTimeline();
     });
-    window.addEventListener("resize", function () { if (data) drawChart(); });
+    window.addEventListener("resize", function () { if (data && tab === "timeline") drawChart(); });
   }
 
   // ------------------------------------------------------------------ pills / filters
@@ -359,7 +396,7 @@
   function buildFindingFilters() {
     var box = $("f-sev"); clear(box);
     SEV.forEach(function (s) { var c = h("button", { type: "button", id: "chip-" + s, class: "chip", "aria-pressed": "false", text: s, onclick: function () { toggleSev(s); } }); c.style.setProperty("--c", SEV_COLOR[s]); box.appendChild(c); });
-    var sel = $("f-cat"); clear(sel); sel.appendChild(h("option", { value: "", text: "All categories" }));
+    var sel = $("f-cat"); clear(sel); sel.appendChild(h("option", { value: "", text: "Every kind" }));
     var cats = {}; data.findings.forEach(function (f) { cats[f.category] = 1; });
     Object.keys(cats).sort().forEach(function (c) { sel.appendChild(h("option", { value: c, text: c })); });
     $("f-search").value = "";
@@ -376,6 +413,14 @@
     }
     return true;
   }
+  function ecard(f) {
+    var files = f.files.length ? f.files.length + (f.files.length === 1 ? " file" : " files") : "no single file";
+    var c = h("button", { type: "button", class: "ecard sev-" + f.severity, "data-id": f.id, onclick: function () { openFinding(f); } }, [
+      h("span", { class: "top" }, [sevBadge(f.severity), h("span", { class: "fid", text: f.id })]),
+      h("h3", { text: f.title }), h("p", { text: short(f.summary, 150) }),
+      h("span", { class: "cfoot" }, [h("span", { text: f.category }), h("span", { text: files }), h("span", { text: "first seen " + f.first_seen })])]);
+    return c;
+  }
   function renderFindings() {
     var s = state.f;
     var rows = data.findings.filter(findingMatches);
@@ -383,6 +428,8 @@
       var r = s.sort === "time" ? (a.first_seen_ms - b.first_seen_ms) : (SEV_RANK[a.severity] - SEV_RANK[b.severity] || a.first_seen_ms - b.first_seen_ms);
       return r * s.dir || (a.id < b.id ? -1 : 1);
     });
+    var board = $("f-board"); clear(board);
+    rows.forEach(function (f) { board.appendChild(ecard(f)); });
     var body = $("f-table").tBodies[0]; clear(body);
     rows.forEach(function (f) {
       body.appendChild(h("tr", { "data-id": f.id, tabindex: "0", onclick: function () { openFinding(f); }, onkeydown: function (e) { if (e.key === "Enter") { e.preventDefault(); openFinding(f); } } }, [
@@ -392,6 +439,7 @@
     });
     $("f-empty").hidden = rows.length > 0;
     $("f-count").textContent = rows.length + " of " + data.findings.length + " findings";
+    $("f-order").value = s.sort === "time" ? "time" : "severity";
     var ap = $("f-active"); clear(ap);
     if (s.q) ap.appendChild(pill("text: " + s.q, function () { s.q = ""; $("f-search").value = ""; renderFindings(); }));
     if (s.cat) ap.appendChild(pill("category: " + s.cat, function () { s.cat = ""; $("f-cat").value = ""; renderFindings(); }));
@@ -403,7 +451,7 @@
 
   // ------------------------------------------------------------------ files
   function buildFileFilters() {
-    var sel = $("fl-flag"); clear(sel); sel.appendChild(h("option", { value: "", text: "All flags" }));
+    var sel = $("fl-flag"); clear(sel); sel.appendChild(h("option", { value: "", text: "Any red flag" }));
     var fl = {}; data.files.forEach(function (f) { f.flags.forEach(function (x) { fl[x] = 1; }); });
     Object.keys(fl).sort().forEach(function (c) { sel.appendChild(h("option", { value: c, text: c })); });
     $("fl-search").value = ""; $("fl-only").checked = false; sel.value = "";
@@ -454,7 +502,7 @@
       box.appendChild(h("button", { type: "button", class: "chip", "aria-pressed": "false", "data-type": t, text: t + " " + types[t], onclick: function () {
         state.ioc.type = state.ioc.type === t ? "" : t; renderIocs(); } }));
     });
-    var sel = $("ioc-scope"); clear(sel); sel.appendChild(h("option", { value: "", text: "Any scope" }));
+    var sel = $("ioc-scope"); clear(sel); sel.appendChild(h("option", { value: "", text: "Inside or outside" }));
     Object.keys(scopes).sort().forEach(function (c) { sel.appendChild(h("option", { value: c, text: c })); });
     $("ioc-search").value = "";
   }
@@ -478,12 +526,12 @@
   // ------------------------------------------------------------------ carved files
   function buildCarved() {
     var cf = data.carved.files, maps = $("carve-maps"); clear(maps);
-    $("carve-count").textContent = cf.length + " carved";
+    $("carve-count").textContent = cf.length + " recovered";
     data.carved.stats.forEach(function (st) {
       maps.appendChild(h("div", { class: "mono muted", text: st.image + " (" + num(st.bytes_scanned) + " bytes)" }));
-      var map = h("div", { class: "imgmap", role: "group", "aria-label": "Where carved files sit inside " + st.image });
+      var map = h("div", { class: "imgmap", role: "group", "aria-label": "Where recovered files sit inside " + st.image });
       cf.filter(function (c) { return c.image === st.image; }).forEach(function (c) {
-        var b = h("button", { type: "button", class: c.status === "complete" ? "" : "partial", title: c.id + " " + c.kind + " @ " + c.offset + " (" + c.length + " bytes, " + c.status + ")", "aria-label": "Open carved file " + c.id, onclick: function () { openCarved(c); } });
+        var b = h("button", { type: "button", class: c.status === "complete" ? "" : "partial", title: c.id + " " + c.kind + " @ " + c.offset + " (" + c.length + " bytes, " + c.status + ")", "aria-label": "Open recovered file " + c.id, onclick: function () { openCarved(c); } });
         b.style.left = (c.offset / st.bytes_scanned * 100) + "%"; b.style.width = Math.max(0.2, c.length / st.bytes_scanned * 100) + "%";
         map.appendChild(b);
       });
@@ -492,7 +540,7 @@
     });
     var box = $("carve-stats"); clear(box);
     data.carved.stats.forEach(function (st) {
-      [[st.headers_found, "headers found"], [st.complete, "complete"], [st.partial, "partial"], [st.rejected, "false headers rejected"], [st.nested_skipped, "nested headers skipped"]]
+      [[st.headers_found, "file headers spotted"], [st.complete, "whole files"], [st.partial, "partial files"], [st.rejected, "false alarms thrown out"], [st.nested_skipped, "headers inside other files, skipped"]]
         .forEach(function (p) { box.appendChild(h("div", { class: "stat" }, [h("b", { text: String(p[0]) }), h("span", { text: p[1] })])); });
     });
     var body = $("carve-table").tBodies[0]; clear(body);
@@ -517,11 +565,11 @@
     var ok = ig.ok && ig.custody_chain_ok;
     st.className = "integrity-status" + (ok ? "" : " bad");
     st.appendChild(h("span", { class: "tick", "aria-hidden": "true", text: ok ? "✓" : "!" }));
-    st.appendChild(h("div", null, [h("div", { class: "big", text: ok ? "Evidence unchanged: hashes before and after analysis match" : (ig.ok ? "Custody chain problem: " + ig.custody_chain_note : "EVIDENCE CHANGED during analysis") }),
+    st.appendChild(h("div", null, [h("div", { class: "big", text: ok ? "Evidence unchanged. The hashes from before and after my analysis match." : (ig.ok ? "Problem with the custody log: " + ig.custody_chain_note : "EVIDENCE CHANGED while I was analysing it") }),
       h("div", { class: "muted", text: ig.differences.length ? ig.differences.length + " difference(s): " + ig.differences.map(function (d) { return (d.change || "change") + " " + (d.label || "") + (d.detail ? " (" + d.detail + ")" : ""); }).join("; ") :
-        "No differences in content, size, mtime or mode. Custody log: " + ig.custody_chain_note + "." })]));
+        "Not one file differs in content, size, modified time or mode. Custody log: " + ig.custody_chain_note + "." })]));
     var mc = $("manifests"); clear(mc);
-    [["Before analysis", ig.before], ["After analysis", ig.after]].forEach(function (p) {
+    [["Before I started", ig.before], ["After I finished", ig.after]].forEach(function (p) {
       mc.appendChild(h("div", { class: "mcard" }, [h("h4", { text: p[0] }), h("div", { text: num(p[1].files || 0) + " files, " + num(p[1].bytes || 0) + " bytes" }),
         h("div", { class: "hash wrap-any", text: "manifest SHA-256 " + (p[1].manifest_sha256 || "n/a") })]));
     });
@@ -552,10 +600,10 @@
   function verifyChain() {
     var out = $("chain-result");
     function say(ok, msg) { out.textContent = msg; out.className = "chain-result " + (ok ? "ok" : "bad"); }
-    if (!window.crypto || !crypto.subtle) { say(false, "Your browser only exposes WebCrypto on HTTPS or localhost, so the chain cannot be recomputed here."); return; }
+    if (!window.crypto || !crypto.subtle) { say(false, "Your browser only offers WebCrypto on HTTPS or localhost, so I cannot recalculate the chain here."); return; }
     var prev = new Array(65).join("0"), i = 0;
     function step() {
-      if (i >= chainEntries.length) { renderCustody(-1); say(true, "Chain intact: all " + chainEntries.length + " entries recomputed in your browser, every prev_hash and entry_hash matches."); return; }
+      if (i >= chainEntries.length) { renderCustody(-1); say(true, "Chain intact: all " + chainEntries.length + " entries recalculated in your browser and every prev_hash and entry_hash matches."); return; }
       var e = chainEntries[i], body = {}; Object.keys(e).forEach(function (k) { if (k !== "entry_hash") body[k] = e[k]; });
       sha256hex(canon(body)).then(function (hex) {
         var why = e.seq !== i + 1 ? "sequence number is " + e.seq : e.prev_hash !== prev ? "prev_hash does not match the previous entry" : hex !== e.entry_hash ? "contents do not match entry_hash (entry was edited)" : "";
@@ -568,7 +616,7 @@
   function tamper() {
     if (tamperedSeq || chainEntries.length < 3) return;
     var e = chainEntries[2]; e.detail = e.detail + " [edited]"; tamperedSeq = e.seq; renderCustody(-1);
-    var out = $("chain-result"); out.textContent = "Entry " + e.seq + " was edited in memory only (the report file is untouched). Now press “Verify chain in browser”."; out.className = "chain-result";
+    var out = $("chain-result"); out.textContent = "Entry " + e.seq + " was edited in memory only. The report file is untouched. Now press “Check the chain here”."; out.className = "chain-result";
   }
   function resetChain() { chainEntries = JSON.parse(JSON.stringify(data.integrity.custody)); tamperedSeq = 0; renderCustody(-1); $("chain-result").textContent = ""; $("chain-result").className = "chain-result"; }
 
@@ -602,7 +650,7 @@
     var body = $("mitre-table").tBodies[0]; clear(body);
     data.mitre.forEach(function (m) {
       var link = /^T\d{4}(\.\d{3})?$/.test(m.id) ? h("a", { href: "https://attack.mitre.org/techniques/" + m.id.replace(".", "/") + "/", target: "_blank", rel: "noopener noreferrer", text: m.id }) : h("span", { text: m.id });
-      body.appendChild(h("tr", { "data-tech": m.id, onclick: function (e) { if (e.target.tagName === "A") return; state.f.technique = state.f.technique === m.id ? "" : m.id; renderFindings(); $("findings-title").scrollIntoView({ behavior: "smooth", block: "start" }); } }, [
+      body.appendChild(h("tr", { "data-tech": m.id, onclick: function (e) { if (e.target.tagName === "A") return; state.f.technique = state.f.technique === m.id ? "" : m.id; renderFindings(); goTab("findings"); } }, [
         td(link), td(m.name), td(m.findings.join(", "))]));
     });
   }
@@ -662,21 +710,21 @@
   function openFinding(f) {
     showDrawer(f.severity, "sev-" + f.severity, f.id, f.title, "#finding=" + f.id);
     var body = $("drawer-body"); clear(body);
-    body.appendChild(section("What was found", h("p", { text: f.summary })));
-    body.appendChild(section("Summary", kvList([["Rule", f.rule], ["Category", f.category], ["First seen", f.first_seen + " UTC"], ["Last seen", f.last_seen + " UTC"]])));
-    if (f.files.length) body.appendChild(section("Files involved (click for details)", fileChips(f.files)));
+    body.appendChild(section("In short", h("p", { text: f.summary })));
+    body.appendChild(section("Details", kvList([["Rule", f.rule], ["Kind", f.category], ["First seen", f.first_seen + " UTC"], ["Last seen", f.last_seen + " UTC"]])));
+    if (f.files.length) body.appendChild(section("Files involved (click one)", fileChips(f.files)));
     if (f.mitre.length) body.appendChild(section("MITRE ATT&CK", h("div", { class: "chip-row" }, f.mitre.map(function (m) {
       return /^T\d{4}(\.\d{3})?$/.test(m.id) ? h("a", { class: "chip-btn", href: "https://attack.mitre.org/techniques/" + m.id.replace(".", "/") + "/", target: "_blank", rel: "noopener noreferrer", text: m.id + " " + m.name }) : h("span", { class: "chip-btn", text: m.id });
     }))));
-    body.appendChild(section("Why it was flagged (evidence)", h("ul", { class: "steps" }, f.evidence.map(function (e) { return h("li", { text: e }); }))));
-    body.appendChild(section("Recommended response", h("ol", { class: "steps" }, f.response.map(function (s) { return h("li", { text: s }); }))));
+    body.appendChild(section("Why I flagged it", h("ul", { class: "steps" }, f.evidence.map(function (e) { return h("li", { text: e }); }))));
+    body.appendChild(section("What to do about it", h("ol", { class: "steps" }, f.response.map(function (s) { return h("li", { text: s }); }))));
     var msg = h("span", { class: "toast", role: "status" });
     body.appendChild(h("div", { class: "btn-row" }, [
-      h("button", { type: "button", class: "btn", text: "Copy as case note", onclick: function () { copyText(findingNote(f), function (ok) { msg.textContent = ok ? "Copied." : "Copy failed: select the text manually."; }); } }),
-      h("button", { type: "button", class: "btn ghost", text: "Copy link", onclick: function () { copyText(location.href.split("#")[0] + "#finding=" + f.id, function (ok) { msg.textContent = ok ? "Link copied." : "Copy failed."; }); } }),
-      f.first_seen_ms ? h("button", { type: "button", class: "btn ghost", text: "Show on timeline", onclick: function () {
+      h("button", { type: "button", class: "btn", text: "Copy as a ticket note", onclick: function () { copyText(findingNote(f), function (ok) { msg.textContent = ok ? "Copied." : "Copy failed: select the text manually."; }); } }),
+      h("button", { type: "button", class: "btn ghost", text: "Copy a link to this", onclick: function () { copyText(location.href.split("#")[0] + "#finding=" + f.id, function (ok) { msg.textContent = ok ? "Link copied." : "Copy failed."; }); } }),
+      f.first_seen_ms ? h("button", { type: "button", class: "btn ghost", text: "Show it on the timeline", onclick: function () {
         var day = Math.floor(f.first_seen_ms / 3600000) * 3600000; state.tl.mode = f.first_seen_ms >= data.window.start_ms && f.first_seen_ms < data.window.end_ms ? "window" : "all";
-        buildTimelineControls(); state.tl.range = [day, day + 3600000]; hideDrawer(true); renderTimeline(); $("timeline-title").scrollIntoView({ behavior: "smooth", block: "start" }); } }) : null, msg]));
+        buildTimelineControls(); state.tl.range = [day, day + 3600000]; hideDrawer(true); renderTimeline(); goTab("timeline"); } }) : null, msg]));
   }
   function timesTable(t) {
     var rows = [["Created (B)", "created"], ["Modified (M)", "modified"], ["Accessed (A)", "accessed"], ["MFT changed (C)", "mft_changed"]];
@@ -694,41 +742,41 @@
     showDrawer(sevName || (fl.length ? "flagged" : "file"), sevName ? "sev-" + sevName : (f.flags.indexOf("known_good") >= 0 ? "sev-ok" : "sev-info"), "", nameOf(f.path), null);
     var body = $("drawer-body"); clear(body);
     body.appendChild(section("Path", h("p", { class: "mono wrap-any", text: f.path })));
-    body.appendChild(section("Content and type", kvList([["Size", num(f.size) + " bytes"], ["Detected from content", f.detected + " (" + f.detected_type + ")"],
-      ["Extension", f.ext ? "." + f.ext : "(none)"], ["Extension expects", f.expected_types.join(", ") || "n/a"], ["Signature check", f.mismatch ? "MISMATCH: " + (typeof f.mismatch === "string" ? f.mismatch : JSON.stringify(f.mismatch)) : "extension and content agree"],
-      ["Hash lists", f.hash_status ? f.hash_status + (f.hash_label ? " (" + f.hash_label + ")" : "") : "not on any list"], ["Metadata source", f.metadata_source]])));
+    body.appendChild(section("What it is", kvList([["Size", num(f.size) + " bytes"], ["Detected from content", f.detected + " (" + f.detected_type + ")"],
+      ["Extension", f.ext ? "." + f.ext : "(none)"], ["Extension expects", f.expected_types.join(", ") || "n/a"], ["Does the name fit the contents?", f.mismatch ? "MISMATCH: " + (typeof f.mismatch === "string" ? f.mismatch : JSON.stringify(f.mismatch)) : "yes, extension and contents agree"],
+      ["On a hash list?", f.hash_status ? f.hash_status + (f.hash_label ? " (" + f.hash_label + ")" : "") : "not on any list"], ["Metadata source", f.metadata_source]])));
     body.appendChild(section("Hashes", kvList([["MD5", f.md5], ["SHA-1", f.sha1], ["SHA-256", f.sha256]])));
     if (f.flags.length) body.appendChild(section("Flags", h("div", null, f.flags.map(flagTag))));
-    if (f.times && (f.times.si || f.times.fn)) body.appendChild(section("Timestamps (UTC, 100 ns precision)", timesTable(f.times)));
+    if (f.times && (f.times.si || f.times.fn)) body.appendChild(section("Timestamps (UTC)", timesTable(f.times)));
     if (f.embedded && (f.embedded.created || f.embedded.modified)) body.appendChild(section("Timestamps inside the document", kvList([["Created", f.embedded.created], ["Last saved", f.embedded.modified]])));
     if (f.timestomp.indicators.length) {
-      body.appendChild(section("Timestomp assessment: " + f.timestomp.verdict + " (score " + f.timestomp.score + ")", h("ul", { class: "steps" }, f.timestomp.indicators.map(function (i) { return h("li", { text: i.id + " (weight " + i.weight + "): " + i.detail }); }))));
+      body.appendChild(section("Were the dates faked? " + f.timestomp.verdict + " (score " + f.timestomp.score + ")", h("ul", { class: "steps" }, f.timestomp.indicators.map(function (i) { return h("li", { text: i.id + " (weight " + i.weight + "): " + i.detail }); }))));
     }
     if (f.suppressed && f.suppressed.length) body.appendChild(section("Suppressed because the hash is known-good", h("p", { class: "muted", text: f.suppressed.join(", ") })));
     var rel = data.findings.filter(function (x) { return x.files.indexOf(f.path) >= 0; });
     if (rel.length) body.appendChild(section("Findings about this file", h("div", { class: "chip-row" }, rel.map(function (x) {
       return h("button", { type: "button", class: "chip-btn", text: x.id + " " + short(x.title, 46), onclick: function () { openFinding(x); } }); }))));
     var cv = data.carved.files.filter(function (c) { return c.matches_file === f.path; });
-    if (cv.length) body.appendChild(section("Identical copy carved from unallocated space", h("div", { class: "chip-row" }, cv.map(function (c) {
+    if (cv.length) body.appendChild(section("An identical copy was recovered from deleted space", h("div", { class: "chip-row" }, cv.map(function (c) {
       return h("button", { type: "button", class: "chip-btn", text: c.id + " @ 0x" + c.offset.toString(16), onclick: function () { openCarved(c); } }); }))));
     body.appendChild(h("div", { class: "btn-row" }, [
-      h("button", { type: "button", class: "btn ghost", text: "Show on timeline", onclick: function () { state.tl.mode = "all"; state.tl.q = f.path; $("tl-search").value = f.path; buildTimelineControls(); $("tl-search").value = f.path; hideDrawer(true); renderTimeline(); $("timeline-title").scrollIntoView({ behavior: "smooth", block: "start" }); } }),
-      h("button", { type: "button", class: "btn ghost", text: "Filter findings to this file", onclick: function () { state.f.file = f.path; hideDrawer(true); renderFindings(); $("findings-title").scrollIntoView({ behavior: "smooth", block: "start" }); } })]));
+      h("button", { type: "button", class: "btn ghost", text: "Show it on the timeline", onclick: function () { state.tl.mode = "all"; state.tl.q = f.path; $("tl-search").value = f.path; buildTimelineControls(); $("tl-search").value = f.path; hideDrawer(true); renderTimeline(); goTab("timeline"); } }),
+      h("button", { type: "button", class: "btn ghost", text: "Only findings about this file", onclick: function () { state.f.file = f.path; hideDrawer(true); renderFindings(); goTab("findings"); } })]));
   }
   function openCarved(c) {
     showDrawer(c.status, c.status === "complete" ? "sev-ok" : "sev-medium", c.id, c.name, null);
     var body = $("drawer-body"); clear(body);
-    body.appendChild(section("Where it was found", kvList([["Image", c.image], ["Offset", "0x" + c.offset.toString(16) + " (" + num(c.offset) + ")"], ["Length", num(c.length) + " bytes"], ["Type", c.kind], ["Structure valid to the end", c.validated ? "yes" : "no"]])));
+    body.appendChild(section("Where I found it", kvList([["Image", c.image], ["Offset", "0x" + c.offset.toString(16) + " (" + num(c.offset) + ")"], ["Length", num(c.length) + " bytes"], ["Type", c.kind], ["Holds together to the end", c.validated ? "yes" : "no"]])));
     var det = c.details || {}, pairs = Object.keys(det).filter(function (k) { return k !== "members"; }).map(function (k) { return [k.replace(/_/g, " "), Array.isArray(det[k]) ? det[k].join(", ") : String(det[k])]; });
     if (det.members) pairs.unshift(["members", det.members.join(", ")]);
-    if (pairs.length) body.appendChild(section("Parsed structure", kvList(pairs)));
+    if (pairs.length) body.appendChild(section("What is inside", kvList(pairs)));
     body.appendChild(section("Hashes", kvList([["MD5", c.md5], ["SHA-1", c.sha1], ["SHA-256", c.sha256], ["Hash lists", c.hash_status]])));
     var rel = [];
-    if (c.matches_file) rel.push(["Identical to file on disk", c.matches_file]);
+    if (c.matches_file) rel.push(["Same as a file still on disk", c.matches_file]);
     if (c.matches_recycle) rel.push(["Matches Recycle Bin record", c.matches_recycle]);
     if (c.matches_mft) rel.push(["Matches deleted MFT entry", c.matches_mft]);
-    body.appendChild(section("Correlation", rel.length ? kvList(rel) : h("p", { class: "muted", text: "No matching file, Recycle Bin or MFT record." })));
-    if (c.matches_file && fileByPath(c.matches_file)) body.appendChild(h("div", { class: "btn-row" }, [h("button", { type: "button", class: "btn ghost", text: "Open the file on disk", onclick: function () { openFile(fileByPath(c.matches_file)); } })]));
+    body.appendChild(section("Does it match anything?", rel.length ? kvList(rel) : h("p", { class: "muted", text: "No matching file, Recycle Bin or MFT record." })));
+    if (c.matches_file && fileByPath(c.matches_file)) body.appendChild(h("div", { class: "btn-row" }, [h("button", { type: "button", class: "btn ghost", text: "Open the file that is still on disk", onclick: function () { openFile(fileByPath(c.matches_file)); } })]));
   }
 
   // ------------------------------------------------------------------ wiring
@@ -774,6 +822,14 @@
       rd.onload = function () { try { init(JSON.parse(rd.result)); } catch (err) { showError("Could not read that file: " + err.message); } };
       rd.readAsText(file); e.target.value = "";
     });
+    $("f-order").addEventListener("change", function (e) { state.f.sort = e.target.value; state.f.dir = e.target.value === "time" ? 1 : -1; renderFindings(); });
+    var views = $("f-view").querySelectorAll("button");
+    for (var v = 0; v < views.length; v++) views[v].addEventListener("click", function (e) {
+      var mode = e.currentTarget.getAttribute("data-view");
+      for (var w = 0; w < views.length; w++) views[w].setAttribute("aria-pressed", views[w] === e.currentTarget ? "true" : "false");
+      $("f-board").hidden = mode !== "board"; $("f-list").hidden = mode !== "list";
+    });
+    wireTabs();
     setupChart();
   }
 
