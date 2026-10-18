@@ -1,0 +1,21 @@
+[project]
+name = "forensictriage"
+version = "1.0.0"
+description = "Digital forensics triage tool: read-only hashing, file-signature analysis, timestomp indicators, file carving, IOC extraction, browser and Windows artefact parsing, chain of custody."
+requires-python = ">=3.10"
+dependencies = []          # standard library only
+
+[project.scripts]
+forensictriage = "forensictriage.cli:main"
+
+[tool.setuptools]
+packages = ["forensictriage"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["forensictriage"]
+omit = ["forensictriage/__main__.py"]

@@ -1,0 +1,138 @@
+{
+  "case_id": "FT-2026-0417",
+  "chain_ok": true,
+  "entries": [
+    {
+      "seq": 1,
+      "time": "2026-10-18 04:06:06.513Z",
+      "case_id": "FT-2026-0417",
+      "actor": "forensictriage 1.0.0",
+      "action": "CASE_OPENED",
+      "detail": "Case opened for read-only triage",
+      "data": {
+        "examiner": "Diogo Ramos (portfolio demonstration)",
+        "synthetic": true,
+        "evidence_root": "evidence",
+        "python": "3.13.5"
+      },
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "entry_hash": "b74abb0ed500cff249301de5d74d52dde50927ffb272f322db4b3adf3e42da16"
+    },
+    {
+      "seq": 2,
+      "time": "2026-10-18 04:06:06.516Z",
+      "case_id": "FT-2026-0417",
+      "actor": "forensictriage 1.0.0",
+      "action": "HASH_BEFORE",
+      "detail": "Hashed 38 evidence and reference files before analysis (MD5, SHA-1, SHA-256)",
+      "data": {
+        "files": 38,
+        "bytes": 358578,
+        "manifest_sha256": "542363fd5fa68f0b5ee038563ba2f6c9835aaa58f7433b7f471b0e8e699a5f43",
+        "skipped": 0
+      },
+      "prev_hash": "b74abb0ed500cff249301de5d74d52dde50927ffb272f322db4b3adf3e42da16",
+      "entry_hash": "59433dd91b36849e8276873c3a2470d9fa05999c0574acf9c4f633904a2ba1e8"
+    },
+    {
+      "seq": 3,
+      "time": "2026-10-18 04:06:06.516Z",
+      "case_id": "FT-2026-0417",
+      "actor": "forensictriage 1.0.0",
+      "action": "REFERENCE_LOADED",
+      "detail": "Loaded hash lists: 2 known-bad, 4 known-good",
+      "data": {
+        "known_bad": 2,
+        "known_good": 4
+      },
+      "prev_hash": "59433dd91b36849e8276873c3a2470d9fa05999c0574acf9c4f633904a2ba1e8",
+      "entry_hash": "b64ec93901ee0492fed961e47cb6755f8610a1f9b58c6f2b4ce0abb6f9f423eb"
+    },
+    {
+      "seq": 4,
+      "time": "2026-10-18 04:06:06.532Z",
+      "case_id": "FT-2026-0417",
+      "actor": "forensictriage 1.0.0",
+      "action": "ANALYSIS_ARTEFACTS",
+      "detail": "Analysed 32 files; parsed 1 browser DB(s), 7 prefetch entries, 14 registry values, 2 Recycle Bin records",
+      "data": {
+        "files": 32,
+        "browsers": 1,
+        "prefetch": 7,
+        "registry": 14,
+        "recycle": 2
+      },
+      "prev_hash": "b64ec93901ee0492fed961e47cb6755f8610a1f9b58c6f2b4ce0abb6f9f423eb",
+      "entry_hash": "27bbefd19eeea61fcf50bf4575339d9728dd545307fc3de791445b0122ab4ec4"
+    },
+    {
+      "seq": 5,
+      "time": "2026-10-18 04:06:06.535Z",
+      "case_id": "FT-2026-0417",
+      "actor": "forensictriage 1.0.0",
+      "action": "ANALYSIS_CARVING",
+      "detail": "Carved 5 candidate file(s) from 1 raw image(s); written under the output folder only",
+      "data": {
+        "carved": 5,
+        "complete": 4,
+        "partial": 1
+      },
+      "prev_hash": "27bbefd19eeea61fcf50bf4575339d9728dd545307fc3de791445b0122ab4ec4",
+      "entry_hash": "f6ecd85fd79c0faf72f571962a66d8db1171f20320dc5431d35b85a7feda27f9"
+    },
+    {
+      "seq": 6,
+      "time": "2026-10-18 04:06:06.535Z",
+      "case_id": "FT-2026-0417",
+      "actor": "forensictriage 1.0.0",
+      "action": "ANALYSIS_IOCS",
+      "detail": "Extracted 12 distinct indicators (282 noise URLs suppressed)",
+      "data": {
+        "indicators": 12
+      },
+      "prev_hash": "f6ecd85fd79c0faf72f571962a66d8db1171f20320dc5431d35b85a7feda27f9",
+      "entry_hash": "4ac43e9f702dcb36fb7084012e86c01bcd66325e3a0f0a35af28016040e9f17f"
+    },
+    {
+      "seq": 7,
+      "time": "2026-10-18 04:06:06.539Z",
+      "case_id": "FT-2026-0417",
+      "actor": "forensictriage 1.0.0",
+      "action": "HASH_AFTER",
+      "detail": "Re-hashed 38 files after analysis",
+      "data": {
+        "files": 38,
+        "manifest_sha256": "542363fd5fa68f0b5ee038563ba2f6c9835aaa58f7433b7f471b0e8e699a5f43"
+      },
+      "prev_hash": "4ac43e9f702dcb36fb7084012e86c01bcd66325e3a0f0a35af28016040e9f17f",
+      "entry_hash": "ec288231ecd41d7f2a127cc3776e30cc450144a68429493da3c23fa4795fe449"
+    },
+    {
+      "seq": 8,
+      "time": "2026-10-18 04:06:06.539Z",
+      "case_id": "FT-2026-0417",
+      "actor": "forensictriage 1.0.0",
+      "action": "VERIFY_OK",
+      "detail": "Before and after manifests are identical (SHA-256, MD5, SHA-1, size, mtime, mode): evidence unchanged",
+      "data": {
+        "manifest_sha256": "542363fd5fa68f0b5ee038563ba2f6c9835aaa58f7433b7f471b0e8e699a5f43"
+      },
+      "prev_hash": "ec288231ecd41d7f2a127cc3776e30cc450144a68429493da3c23fa4795fe449",
+      "entry_hash": "b29d137eaa994fb4172cc16395aeb4c92f154b8b79df7fc3d2c04351035619e1"
+    },
+    {
+      "seq": 9,
+      "time": "2026-10-18 04:06:06.543Z",
+      "case_id": "FT-2026-0417",
+      "actor": "forensictriage 1.0.0",
+      "action": "REPORT_WRITTEN",
+      "detail": "Case report written (JSON and Markdown); the report quotes this log up to the verification step",
+      "data": {
+        "case_report_json_sha256": "e132476b3712f2940708a386bda7ab5da6339af069cc26bf4c62a4349541a166",
+        "case_report_md_sha256": "9cc2b54f8838cf69303aeb8ace8cab89710bc39799c8e62a9d1c9751010043e8"
+      },
+      "prev_hash": "b29d137eaa994fb4172cc16395aeb4c92f154b8b79df7fc3d2c04351035619e1",
+      "entry_hash": "34651fdd4f7636be17dd063fc8bd43486541ca70698f11ce717abc806ba0ca9b"
+    }
+  ]
+}

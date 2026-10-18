@@ -1,0 +1,413 @@
+{
+  "synthetic": true,
+  "case_id": "FT-2026-0417",
+  "passed": true,
+  "scenarios": [
+    {
+      "id": "GT-01",
+      "scenario": "USB device connected during the incident",
+      "rule": "FT-007",
+      "passed": true,
+      "finding": "FND-005",
+      "severity": "high",
+      "detail": ""
+    },
+    {
+      "id": "GT-02",
+      "scenario": "archive renamed to .jpg",
+      "rule": "FT-002",
+      "passed": true,
+      "finding": "FND-006",
+      "severity": "high",
+      "detail": ""
+    },
+    {
+      "id": "GT-03",
+      "scenario": "executable disguised as a PDF",
+      "rule": "FT-002",
+      "passed": true,
+      "finding": "FND-002",
+      "severity": "high",
+      "detail": ""
+    },
+    {
+      "id": "GT-04",
+      "scenario": "executable stand-in is on the known-bad list",
+      "rule": "FT-001",
+      "passed": true,
+      "finding": "FND-001",
+      "severity": "critical",
+      "detail": ""
+    },
+    {
+      "id": "GT-05",
+      "scenario": "timestomped roadmap copy",
+      "rule": "FT-003",
+      "passed": true,
+      "finding": "FND-004",
+      "severity": "high",
+      "detail": ""
+    },
+    {
+      "id": "GT-06",
+      "scenario": "zeroed / epoch timestamps",
+      "rule": "FT-003",
+      "passed": true,
+      "finding": "FND-003",
+      "severity": "high",
+      "detail": ""
+    },
+    {
+      "id": "GT-07",
+      "scenario": "deleted archive recovered by carving and matched",
+      "rule": "FT-005",
+      "passed": true,
+      "finding": "FND-010",
+      "severity": "high",
+      "detail": ""
+    },
+    {
+      "id": "GT-08",
+      "scenario": "Recycle Bin record without content",
+      "rule": "FT-006",
+      "passed": true,
+      "finding": "FND-015",
+      "severity": "medium",
+      "detail": ""
+    },
+    {
+      "id": "GT-09",
+      "scenario": "deleted PDF recovered and matched to a deleted MFT entry",
+      "rule": "FT-005",
+      "passed": true,
+      "finding": "FND-008",
+      "severity": "high",
+      "detail": ""
+    },
+    {
+      "id": "GT-10",
+      "scenario": "deleted screenshot recovered and matched to a deleted MFT entry",
+      "rule": "FT-005",
+      "passed": true,
+      "finding": "FND-009",
+      "severity": "high",
+      "detail": ""
+    },
+    {
+      "id": "GT-11",
+      "scenario": "other carved files (JPEG and a partial PNG)",
+      "rule": "FT-005",
+      "passed": true,
+      "finding": "FND-017",
+      "severity": "medium",
+      "detail": ""
+    },
+    {
+      "id": "GT-12",
+      "scenario": "7-Zip executed",
+      "rule": "FT-008",
+      "passed": true,
+      "finding": "FND-014",
+      "severity": "medium",
+      "detail": ""
+    },
+    {
+      "id": "GT-13",
+      "scenario": "SDelete executed",
+      "rule": "FT-009",
+      "passed": true,
+      "finding": "FND-007",
+      "severity": "high",
+      "detail": ""
+    },
+    {
+      "id": "GT-14",
+      "scenario": "file-transfer and webmail visits",
+      "rule": "FT-010",
+      "passed": true,
+      "finding": "FND-011",
+      "severity": "medium",
+      "detail": ""
+    },
+    {
+      "id": "GT-15",
+      "scenario": "searches about deleting files and changing dates",
+      "rule": "FT-011",
+      "passed": true,
+      "finding": "FND-012",
+      "severity": "medium",
+      "detail": ""
+    },
+    {
+      "id": "GT-16",
+      "scenario": "staging folder",
+      "rule": "FT-012",
+      "passed": true,
+      "finding": "FND-013",
+      "severity": "medium",
+      "detail": ""
+    },
+    {
+      "id": "GT-17",
+      "scenario": "external indicators in notes and script",
+      "rule": "FT-013",
+      "passed": true,
+      "finding": "FND-018",
+      "severity": "medium",
+      "detail": ""
+    },
+    {
+      "id": "GT-18",
+      "scenario": "deleted MFT entries",
+      "rule": "FT-014",
+      "passed": true,
+      "finding": "FND-016",
+      "severity": "medium",
+      "detail": ""
+    },
+    {
+      "id": "GT-19",
+      "scenario": "weak timestamp anomalies kept low",
+      "rule": "FT-004",
+      "passed": true,
+      "finding": "FND-020",
+      "severity": "low",
+      "detail": ""
+    },
+    {
+      "id": "GT-20",
+      "scenario": "whole-second timestamps from an unzip stay weak",
+      "rule": "FT-004",
+      "passed": true,
+      "finding": "FND-020",
+      "severity": "low",
+      "detail": ""
+    },
+    {
+      "id": "GT-21",
+      "scenario": "same-kind mismatch (JPEG saved as .png) stays low",
+      "rule": "FT-002",
+      "passed": true,
+      "finding": "FND-019",
+      "severity": "low",
+      "detail": ""
+    }
+  ],
+  "scenarios_passed": 21,
+  "scenarios_total": 21,
+  "must_not_flag": [
+    {
+      "rule": "FT-003",
+      "path": "Q4_report_copy.xlsx",
+      "why": "modified-before-created alone is what a copy looks like",
+      "passed": true,
+      "finding": null
+    },
+    {
+      "rule": "FT-003",
+      "path": "setup_notes.txt",
+      "why": "whole-second times alone are weak",
+      "passed": true,
+      "finding": null
+    },
+    {
+      "rule": "FT-003",
+      "path": "stage/Q1_Customer_Pricing.xlsx",
+      "why": "an ordinary copy",
+      "passed": true,
+      "finding": null
+    },
+    {
+      "rule": "FT-003",
+      "path": "holiday_photos_2025.jpg",
+      "why": "an ordinary copy",
+      "passed": true,
+      "finding": null
+    },
+    {
+      "rule": "FT-002",
+      "path": "corp_logo.png",
+      "why": "known-good baseline file",
+      "passed": true,
+      "finding": null
+    },
+    {
+      "rule": "FT-002",
+      "path": "cat.jpeg",
+      "why": "jpeg is a valid alias for JPEG data",
+      "passed": true,
+      "finding": null
+    },
+    {
+      "rule": "FT-002",
+      "path": "Atlas_Roadmap.docx",
+      "why": "OOXML in a ZIP container is a valid .docx",
+      "passed": true,
+      "finding": null
+    },
+    {
+      "rule": "FT-006",
+      "path": "$I8XW2MA.docx",
+      "why": "content is still in the bin",
+      "passed": true,
+      "finding": null
+    },
+    {
+      "rule": "FT-007",
+      "path": "AA00112233",
+      "why": "USB device from months earlier",
+      "passed": true,
+      "finding": null
+    }
+  ],
+  "must_not_passed": 9,
+  "must_not_total": 9,
+  "unexpected_findings": [],
+  "iocs": [
+    {
+      "type": "url",
+      "value": "https://quickdrop-transfer.example/u/Wk3p9QxZ",
+      "passed": true
+    },
+    {
+      "type": "ipv4",
+      "value": "203.0.113.45",
+      "passed": true
+    },
+    {
+      "type": "email",
+      "value": "jordan.w.private@mailbox-secure.example",
+      "passed": true
+    },
+    {
+      "type": "email",
+      "value": "it-helpdesk@northwind-analytics.example",
+      "passed": true
+    },
+    {
+      "type": "ipv4",
+      "value": "10.20.4.17",
+      "passed": true
+    },
+    {
+      "type": "windows_path",
+      "value": "C:\\Users\\jwhitfield\\AppData\\Local\\Temp\\stage",
+      "passed": true
+    }
+  ],
+  "noise_iocs": [],
+  "carving": [
+    {
+      "check": "complete = 4",
+      "passed": true,
+      "actual": 4
+    },
+    {
+      "check": "partial = 1",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "check": "rejected = 3",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "check": "nested headers skipped >= 2",
+      "passed": true,
+      "actual": 14
+    },
+    {
+      "check": "zip carved at offset 78848",
+      "passed": true,
+      "actual": [
+        78848,
+        116736,
+        146432,
+        165376,
+        219648
+      ]
+    },
+    {
+      "check": "jpeg carved at offset 116736",
+      "passed": true,
+      "actual": [
+        78848,
+        116736,
+        146432,
+        165376,
+        219648
+      ]
+    },
+    {
+      "check": "pdf carved at offset 146432",
+      "passed": true,
+      "actual": [
+        78848,
+        116736,
+        146432,
+        165376,
+        219648
+      ]
+    },
+    {
+      "check": "png carved at offset 165376",
+      "passed": true,
+      "actual": [
+        78848,
+        116736,
+        146432,
+        165376,
+        219648
+      ]
+    },
+    {
+      "check": "png-partial carved at offset 219648",
+      "passed": true,
+      "actual": [
+        78848,
+        116736,
+        146432,
+        165376,
+        219648
+      ]
+    },
+    {
+      "check": "carved ZIP is byte-identical to the renamed file on disk",
+      "passed": true,
+      "actual": "Users/jwhitfield/Pictures/holiday_photos_2025.jpg"
+    }
+  ],
+  "usb_serials": [
+    "0701A2B3C4D5E6F7&0",
+    "AA00112233&0"
+  ],
+  "counts": [
+    {
+      "check": "files = 32",
+      "passed": true,
+      "actual": 32
+    },
+    {
+      "check": "recycle_records = 2",
+      "passed": true,
+      "actual": 2
+    },
+    {
+      "check": "mft_deleted = 3",
+      "passed": true,
+      "actual": 3
+    },
+    {
+      "check": "known_bad = 1",
+      "passed": true,
+      "actual": 1
+    },
+    {
+      "check": "known_good = 4",
+      "passed": true,
+      "actual": 4
+    }
+  ],
+  "integrity_ok": true
+}

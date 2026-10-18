@@ -1,0 +1,272 @@
+{
+  "synthetic": true,
+  "case_id": "FT-2026-0417",
+  "generator_version": "1.0.0",
+  "storyline": [
+    "2026-03-09 22:41 searches for how to change file dates and permanently delete files; visits a file-transfer site",
+    "2026-03-10 21:56-21:57 copies pricing, client list and roadmap into a Temp\\stage folder; the roadmap's dates are then set back to January 2025",
+    "2026-03-10 21:58 7-Zip builds proj_backup.zip; 22:07 a USB drive is plugged in",
+    "2026-03-10 22:10 the archive is copied to Pictures as holiday_photos_2025.jpg (it is still a ZIP)",
+    "2026-03-10 22:20 proj_backup.zip is deleted and its Recycle Bin content removed; 22:24 SDelete runs; 22:26 two more files are deleted normally"
+  ],
+  "expected_findings": [
+    {
+      "id": "GT-01",
+      "scenario": "USB device connected during the incident",
+      "rule": "FT-007",
+      "contains": "0701A2B3C4D5E6F7",
+      "min_severity": "high"
+    },
+    {
+      "id": "GT-02",
+      "scenario": "archive renamed to .jpg",
+      "rule": "FT-002",
+      "contains": "holiday_photos_2025.jpg",
+      "min_severity": "high"
+    },
+    {
+      "id": "GT-03",
+      "scenario": "executable disguised as a PDF",
+      "rule": "FT-002",
+      "contains": "invoice_template.pdf",
+      "min_severity": "high"
+    },
+    {
+      "id": "GT-04",
+      "scenario": "executable stand-in is on the known-bad list",
+      "rule": "FT-001",
+      "contains": "invoice_template.pdf",
+      "min_severity": "critical"
+    },
+    {
+      "id": "GT-05",
+      "scenario": "timestomped roadmap copy",
+      "rule": "FT-003",
+      "contains": "stage/Atlas_Roadmap.docx",
+      "min_severity": "high"
+    },
+    {
+      "id": "GT-06",
+      "scenario": "zeroed / epoch timestamps",
+      "rule": "FT-003",
+      "contains": "invoice_template.pdf",
+      "min_severity": "high"
+    },
+    {
+      "id": "GT-07",
+      "scenario": "deleted archive recovered by carving and matched",
+      "rule": "FT-005",
+      "contains": "proj_backup.zip",
+      "min_severity": "high"
+    },
+    {
+      "id": "GT-08",
+      "scenario": "Recycle Bin record without content",
+      "rule": "FT-006",
+      "contains": "proj_backup.zip",
+      "min_severity": "medium"
+    },
+    {
+      "id": "GT-09",
+      "scenario": "deleted PDF recovered and matched to a deleted MFT entry",
+      "rule": "FT-005",
+      "contains": "transfer_instructions.pdf",
+      "min_severity": "high"
+    },
+    {
+      "id": "GT-10",
+      "scenario": "deleted screenshot recovered and matched to a deleted MFT entry",
+      "rule": "FT-005",
+      "contains": "Screenshot_2026-03-10_221207.png",
+      "min_severity": "high"
+    },
+    {
+      "id": "GT-11",
+      "scenario": "other carved files (JPEG and a partial PNG)",
+      "rule": "FT-005",
+      "contains": "more deleted files",
+      "min_severity": "medium"
+    },
+    {
+      "id": "GT-12",
+      "scenario": "7-Zip executed",
+      "rule": "FT-008",
+      "contains": "7ZG.EXE",
+      "min_severity": "medium"
+    },
+    {
+      "id": "GT-13",
+      "scenario": "SDelete executed",
+      "rule": "FT-009",
+      "contains": "SDELETE64.EXE",
+      "min_severity": "high"
+    },
+    {
+      "id": "GT-14",
+      "scenario": "file-transfer and webmail visits",
+      "rule": "FT-010",
+      "contains": "quickdrop-transfer.example",
+      "min_severity": "medium"
+    },
+    {
+      "id": "GT-15",
+      "scenario": "searches about deleting files and changing dates",
+      "rule": "FT-011",
+      "contains": "permanently",
+      "min_severity": "medium"
+    },
+    {
+      "id": "GT-16",
+      "scenario": "staging folder",
+      "rule": "FT-012",
+      "contains": "Temp/stage",
+      "min_severity": "medium"
+    },
+    {
+      "id": "GT-17",
+      "scenario": "external indicators in notes and script",
+      "rule": "FT-013",
+      "contains": "203.0.113.45",
+      "min_severity": "medium"
+    },
+    {
+      "id": "GT-18",
+      "scenario": "deleted MFT entries",
+      "rule": "FT-014",
+      "contains": "transfer_instructions.pdf",
+      "min_severity": "medium"
+    },
+    {
+      "id": "GT-19",
+      "scenario": "weak timestamp anomalies kept low",
+      "rule": "FT-004",
+      "contains": "Q4_report_copy.xlsx",
+      "min_severity": "low"
+    },
+    {
+      "id": "GT-20",
+      "scenario": "whole-second timestamps from an unzip stay weak",
+      "rule": "FT-004",
+      "contains": "setup_notes.txt",
+      "min_severity": "low"
+    },
+    {
+      "id": "GT-21",
+      "scenario": "same-kind mismatch (JPEG saved as .png) stays low",
+      "rule": "FT-002",
+      "contains": "profile_pic.png",
+      "min_severity": "low"
+    }
+  ],
+  "must_not_flag": [
+    {
+      "rule": "FT-003",
+      "path": "Q4_report_copy.xlsx",
+      "why": "modified-before-created alone is what a copy looks like"
+    },
+    {
+      "rule": "FT-003",
+      "path": "setup_notes.txt",
+      "why": "whole-second times alone are weak"
+    },
+    {
+      "rule": "FT-003",
+      "path": "stage/Q1_Customer_Pricing.xlsx",
+      "why": "an ordinary copy"
+    },
+    {
+      "rule": "FT-003",
+      "path": "holiday_photos_2025.jpg",
+      "why": "an ordinary copy"
+    },
+    {
+      "rule": "FT-002",
+      "path": "corp_logo.png",
+      "why": "known-good baseline file"
+    },
+    {
+      "rule": "FT-002",
+      "path": "cat.jpeg",
+      "why": "jpeg is a valid alias for JPEG data"
+    },
+    {
+      "rule": "FT-002",
+      "path": "Atlas_Roadmap.docx",
+      "why": "OOXML in a ZIP container is a valid .docx"
+    },
+    {
+      "rule": "FT-006",
+      "path": "$I8XW2MA.docx",
+      "why": "content is still in the bin"
+    },
+    {
+      "rule": "FT-007",
+      "path": "AA00112233",
+      "why": "USB device from months earlier"
+    }
+  ],
+  "expected_iocs": [
+    {
+      "type": "url",
+      "value": "https://quickdrop-transfer.example/u/Wk3p9QxZ"
+    },
+    {
+      "type": "ipv4",
+      "value": "203.0.113.45",
+      "scope": "external"
+    },
+    {
+      "type": "email",
+      "value": "jordan.w.private@mailbox-secure.example",
+      "scope": "external"
+    },
+    {
+      "type": "email",
+      "value": "it-helpdesk@northwind-analytics.example",
+      "scope": "internal"
+    },
+    {
+      "type": "ipv4",
+      "value": "10.20.4.17",
+      "scope": "internal"
+    },
+    {
+      "type": "windows_path",
+      "value": "C:\\Users\\jwhitfield\\AppData\\Local\\Temp\\stage"
+    }
+  ],
+  "must_not_be_iocs": [
+    "schemas.openxmlformats.org",
+    "purl.org",
+    "www.w3.org"
+  ],
+  "expected_carving": {
+    "complete": 4,
+    "partial": 1,
+    "rejected": 3,
+    "nested_skipped_at_least": 2,
+    "offsets": {
+      "zip": 78848,
+      "jpeg": 116736,
+      "pdf": 146432,
+      "png": 165376,
+      "png-partial": 219648
+    },
+    "zip_sha256_equals_file": {
+      "carved": "zip",
+      "file": "Users/jwhitfield/Pictures/holiday_photos_2025.jpg",
+      "sha256": "9ef7896eb55fd98f8bcb17d72f5379e9a3b89eec645f096483930f755d46d992"
+    }
+  },
+  "expected_usb_serials": [
+    "0701A2B3C4D5E6F7&0",
+    "AA00112233&0"
+  ],
+  "expected_counts": {
+    "files": 32,
+    "recycle_records": 2,
+    "mft_deleted": 3,
+    "known_bad": 1,
+    "known_good": 4
+  }
+}

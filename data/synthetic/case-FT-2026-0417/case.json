@@ -1,0 +1,17 @@
+{
+  "case_id": "FT-2026-0417",
+  "title": "Insider data exfiltration: Northwind Analytics workstation WKS-FIN-07 (SYNTHETIC)",
+  "examiner": "Diogo Ramos (portfolio demonstration)",
+  "synthetic": true,
+  "acquired_at": "2026-03-16 08:30:00",
+  "description": "Fictional scenario. An employee who has given notice stages customer pricing, a roadmap and a client list, archives them with 7-Zip, renames the archive to look like a holiday photo, copies it to a USB drive, deletes the original archive and two notes, runs a secure-delete tool, and sets back the dates on a staged document.",
+  "evidence_root": "evidence",
+  "raw_images": [
+    "unallocated/unallocated.dd"
+  ],
+  "metadata": "artifacts/mft_export.csv",
+  "prefetch": "artifacts/prefetch_export.json",
+  "registry": "artifacts/registry_export.csv",
+  "known_bad": "hashsets/known_bad.txt",
+  "known_good": "hashsets/known_good.txt"
+}
