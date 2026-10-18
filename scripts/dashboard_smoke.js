@@ -27,7 +27,7 @@ const report = JSON.parse(fs.readFileSync("dashboard/data/case.json", "utf8"));
 
   await page.goto(base + "/", { waitUntil: "networkidle" });
   await page.waitForSelector("#f-table tbody tr", { state: "attached" });
-  const tab = async (name) => { await page.click("#tab-" + name); await page.waitForSelector("#page-" + name + ":not([hidden])"); };
+  const tab = async (name) => { if (await page.locator("#tab-" + name).isHidden()) await page.click("#tabs-more"); await page.click("#tab-" + name); await page.waitForSelector("#page-" + name + ":not([hidden])"); };
 
   // ---- the case file: tabs, banner, personal note
   const tabNames = ["guide", "case", "timeline", "findings", "files", "clues", "recovered", "custody", "traces", "attack"];
@@ -91,6 +91,7 @@ const report = JSON.parse(fs.readFileSync("dashboard/data/case.json", "utf8"));
   const firsts = await page.$$eval("#f-table tbody tr td:last-child", (tds) => tds.map((x) => x.textContent));
   assert(firsts.every((v, i) => i === 0 || firsts[i - 1] >= v), "time sort (newest first on first click)");
   await page.click('#f-view button[data-view="board"]');
+  await page.click("#f-tools > summary");
   await page.selectOption("#f-order", "time");
   const cardsFirst = await page.locator("#f-board .ecard").first().getAttribute("data-id");
   assert.strictEqual(cardsFirst, report.findings.slice().sort((a, b) => a.first_seen_ms - b.first_seen_ms || (a.id < b.id ? -1 : 1))[0].id, "oldest-first order on the board");
@@ -220,7 +221,7 @@ const report = JSON.parse(fs.readFileSync("dashboard/data/case.json", "utf8"));
   await m.waitForSelector("#f-board .ecard");
   assert((await m.evaluate(() => document.documentElement.scrollWidth)) <= 392, "no horizontal overflow on the mobile board");
   await m.screenshot({ path: outDir + "/08-mobile-board.png" });
-  for (const n of ["files", "recovered", "custody", "traces"]) { await m.click("#tab-" + n); assert((await m.evaluate(() => document.documentElement.scrollWidth)) <= 392, "no overflow on mobile tab " + n); }
+  for (const n of ["files", "recovered", "custody", "traces"]) { if (await m.locator("#tab-" + n).isHidden()) await m.click("#tabs-more"); await m.click("#tab-" + n); assert((await m.evaluate(() => document.documentElement.scrollWidth)) <= 392, "no overflow on mobile tab " + n); }
 
   // ---- the "How to use this" guide: Start here note, remembered dismissal, and every step in the guide really works
   async function guideWalk(vp, shot) {
@@ -229,7 +230,7 @@ const report = JSON.parse(fs.readFileSync("dashboard/data/case.json", "utf8"));
     g.on("console", (x) => { if (x.type() === "error") errors.push("guide: " + x.text()); });
     g.on("pageerror", (e) => errors.push("guide: " + e));
     const grows = (sel) => g.locator(sel + " tbody tr").count();
-    const gtab = async (name) => { await g.click("#tab-" + name); await g.waitForSelector("#page-" + name + ":not([hidden])"); };
+    const gtab = async (name) => { if (await g.locator("#tab-" + name).isHidden()) await g.click("#tabs-more"); await g.click("#tab-" + name); await g.waitForSelector("#page-" + name + ":not([hidden])"); };
     const noOverflow = async (why) => assert((await g.evaluate(() => document.documentElement.scrollWidth)) <= vp.width + 2, "no horizontal overflow: " + why);
     await g.goto(base + "/", { waitUntil: "networkidle" });
     await g.waitForSelector("#f-table tbody tr", { state: "attached" });
@@ -245,7 +246,7 @@ const report = JSON.parse(fs.readFileSync("dashboard/data/case.json", "utf8"));
     await g.click("#tab-guide");
     assert(await g.locator("#page-guide").isVisible(), "guide opens");
     await noOverflow("guide page");
-    assert.strictEqual(await g.locator("#page-guide .walk > li").count(), 6, "six steps");
+    assert.strictEqual(await g.locator("#page-guide .walk > li").count(), 5, "five steps");
     for (const w of ["Try this in 60 seconds", "Words you will see", "What this shows about my skills"]) assert((await g.locator("#page-guide").textContent()).includes(w), w);
     assert((await g.locator("#page-guide .gloss dt").count()) >= 12, "glossary terms");
     if (vp.width < 500) await g.evaluate(() => document.getElementById("walk-title").scrollIntoView());
@@ -270,20 +271,23 @@ const report = JSON.parse(fs.readFileSync("dashboard/data/case.json", "utf8"));
     await g.waitForSelector("#drawer:not([hidden])");
     const dtxt = await g.locator("#drawer").innerText();
     for (const w of ["In short", "Why I flagged it", "What to do about it", "ZIP archive disguised as .jpg", "Files involved"]) assert(dtxt.toLowerCase().includes(w.toLowerCase()), "step 3: " + w);
-    // step 4: the file chip
+    // (still step 3) the file chip
     await g.locator("#drawer-body .chip-btn", { hasText: "holiday_photos_2025.jpg" }).click();
     const ftxt = await g.locator("#drawer").innerText();
-    for (const w of ["MD5", "SHA-1", "SHA-256", "ZIP archive", "AN IDENTICAL COPY WAS RECOVERED FROM DELETED SPACE"]) assert(ftxt.toUpperCase().includes(w.toUpperCase()), "step 4: " + w);
+    for (const w of ["MD5", "SHA-1", "SHA-256", "ZIP archive", "AN IDENTICAL COPY WAS RECOVERED FROM DELETED SPACE"]) assert(ftxt.toUpperCase().includes(w.toUpperCase()), "step 3: " + w);
     await g.click("#d-close");
-    assert(await g.locator("#drawer").isHidden(), "step 4: Close closes the panel");
-    // step 5: CF-001
+    assert(await g.locator("#drawer").isHidden(), "step 3: Close closes the panel");
+    // step 4: More of the file, Deleted then found, CF-001
+    assert(await g.locator("#tab-recovered").isHidden(), "step 4: the folded tabs start closed");
+    await g.click("#tabs-more");
+    assert(await g.locator("#tab-recovered").isVisible(), "step 4: More of the file shows them");
     await gtab("recovered");
     await g.locator("#carve-table tbody tr").first().click();
     await g.waitForSelector("#drawer:not([hidden])");
     const cf1 = await g.locator("#drawer").innerText();
-    assert(/CF-001/.test(cf1) && /6,342/.test(cf1) && /holiday_photos_2025\.jpg/.test(cf1) && /proj_backup\.zip/.test(cf1) && /MEMBER COUNT\s+3/.test(cf1), "step 5: CF-001 panel: " + JSON.stringify(cf1));
+    assert(/CF-001/.test(cf1) && /6,342/.test(cf1) && /holiday_photos_2025\.jpg/.test(cf1) && /proj_backup\.zip/.test(cf1) && /MEMBER COUNT\s+3/.test(cf1), "step 4: CF-001 panel: " + JSON.stringify(cf1));
     await g.click("#d-close");
-    // step 6: tamper test
+    // step 5: tamper test
     await gtab("custody");
     await g.click("#chain-verify");
     await g.waitForFunction(() => /Chain intact/.test(document.getElementById("chain-result").textContent));
@@ -291,7 +295,7 @@ const report = JSON.parse(fs.readFileSync("dashboard/data/case.json", "utf8"));
     await g.click("#chain-verify");
     await g.waitForFunction(() => /Chain BROKEN at entry 3/.test(document.getElementById("chain-result").textContent));
     await g.click("#chain-reset");
-    assert.strictEqual((await g.locator("#chain-result").textContent()).trim(), "", "step 6: Undo clears the result");
+    assert.strictEqual((await g.locator("#chain-result").textContent()).trim(), "", "step 5: Undo clears the result");
     // the Start here note comes back when storage is cleared and its button opens the guide
     await g.evaluate(() => localStorage.clear());
     await g.reload({ waitUntil: "networkidle" });

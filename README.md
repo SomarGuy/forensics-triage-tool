@@ -18,14 +18,13 @@ I'm teaching myself digital forensics for the GCFE, and this is where I put the 
 
 ## How to use the demo
 
-The live page has a folder tab marked **"?" How to use this** at the top of the left-hand tabs, and a yellow "Start here" note the first time you visit. Both lead to the same guide. If you only have a minute:
+The live page has a folder tab marked **"?" How to use this** at the top of the left-hand tabs, and a one-line "New here?" note the first time you visit. Both lead to the same guide. If you only have a minute:
 
-1. Stay on **The case** tab. Read the Case summary card and the "What happened, in order" strip. It is an invented insider case: files are gathered, an archive is renamed to look like a photo, copied to a USB stick, and the originals are deleted.
+1. Stay on **The case** tab. Read the Case summary card and the "What happened, in order" strip (the "Show the other 9" button under it lists the rest). It is an invented insider case: files are gathered, an archive is renamed to look like a photo, copied to a USB stick, and the originals are deleted.
 2. Click the red **1 critical** stamp. "What I found" opens with one finding, `invoice_template.pdf`, whose hash is on a known-bad list. Notice "1 of 20 findings", then click **Start over** to see all twenty.
-3. Click the card **Extension does not match content: holiday_photos_2025.jpg**. The panel has "In short", "Why I flagged it" and "What to do about it". The file is named like a photo but it is a ZIP archive.
-4. In that panel, under "Files involved", click **holiday_photos_2025.jpg** to see its MD5, SHA-1 and SHA-256, what the bytes really are, and a note that an identical copy was recovered from deleted space. Press Close.
-5. Open **Deleted, then found** and click the first row, `CF-001`. It is a 6,342 byte ZIP carved from the raw disk image. It matches the "photo" on disk and a Recycle Bin record for `proj_backup.zip`.
-6. Open **Did I change anything?**, click **Check the chain here** (intact), then **Pretend someone edited an entry** and check again. It reports the chain is broken at entry 3. **Undo** puts it back.
+3. Click the card **Extension does not match content: holiday_photos_2025.jpg**. The panel has "In short", "Why I flagged it" and "What to do about it". The file is named like a photo but it is a ZIP archive. Under "Files involved", click **holiday_photos_2025.jpg** to see its MD5, SHA-1 and SHA-256 and a note that an identical copy was recovered from deleted space. Press Close.
+4. Open **More of the file** in the left-hand tabs, then **Deleted, then found**, and click the first row, `CF-001`. It is a 6,342 byte ZIP carved from the raw disk image. It matches the "photo" on disk and a Recycle Bin record for `proj_backup.zip`.
+5. In **More of the file**, open **Did I change anything?**, click **Check the chain here** (intact), then **Pretend someone edited an entry** and check again. It reports the chain is broken at entry 3. **Undo** puts it back.
 
 The guide also explains the terms on screen (hash, chain of custody, timestomping, file carving, IOC, MITRE ATT&CK and more) and has a short note on what the project says about my skills. Each step has a "Take me there" button. `scripts/dashboard_smoke.js` follows these exact steps at desktop and phone width, so the guide and the page can't drift apart.
 
@@ -43,7 +42,7 @@ When someone is suspected of taking data, the first few hours of a review look t
 - **Gives copies the benefit of the doubt.** "Modified before created" on its own is what a normal copy from another disk looks like, so it's a low note and not an accusation. A *likely* timestomp needs several independent indicators (a score of 3 or more by default).
 - **Carves by structure.** A JPEG is walked segment by segment and its scan data is followed to the real end-of-image, so an embedded thumbnail doesn't end the file early. A PNG is walked chunk by chunk with CRC-32 checks. A PDF is followed through `%%EOF` and incremental updates. A ZIP needs an end-of-central-directory record whose geometry makes sense and has to pass `zipfile.testzip()`. Each result is *complete* or *partial*, and false headers are counted and thrown out.
 - **Grades itself** against `ground_truth.json`, which lists every planted behaviour, every look-alike that must *not* be flagged, the expected IOCs and the expected carving offsets. (It's my own storyline, see the limitations.)
-- **Dashboard.** Styled as a case file: a manila-tab spine on the left, rubber-stamp counts, a vertical strip of what happened in order, an evidence board of findings (or a plain list, if you prefer), a timeline you can click into, a sortable file ledger, clues, a map of where each recovered file sat in the raw image, and a custody page that **recalculates the SHA-256 chain in your browser** and lets you edit an entry in memory to watch it break. "Open your own case_report.json" runs entirely in your browser.
+- **Dashboard.** Styled as a case file, and kept calm on purpose: five main tabs with the other five under "More of the file", four rubber-stamp counts (the rest under "more counts"), a vertical strip of what happened in order, an evidence board of findings (or a plain list, if you prefer), a timeline you can click into, a sortable file ledger, clues, a map of where each recovered file sat in the raw image, and a custody page that **recalculates the SHA-256 chain in your browser** and lets you edit an entry in memory to watch it break. "Open your own case_report.json" runs entirely in your browser.
 
 ## Screenshots
 

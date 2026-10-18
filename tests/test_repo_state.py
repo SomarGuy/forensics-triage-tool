@@ -231,12 +231,12 @@ def test_guide_tab_is_first_in_the_nav_and_the_case_still_opens_first():
     assert re.search(r'<aside id="start-here"[^>]*\bhidden\b', html)        # shown by script only if it was not dismissed
 
 
-def test_guide_has_the_four_required_parts_and_six_steps():
+def test_guide_has_the_four_required_parts_and_five_steps():
     g = _guide_section()
     for heading in ("Try this in 60 seconds", "Words you will see", "What this shows about my skills"):
         assert heading in g, heading
     assert "forensics triage tool I wrote" in g                               # one-sentence what and why
-    assert len(re.findall(r"<li><p><b>", g)) == 6
+    assert len(re.findall(r"<li><p><b>", g)) == 5
     for term in ("Hash (MD5, SHA-1, SHA-256)", "Chain of custody", "Hash chain", "Timestomping", "MACB", "File carving", "IOC (indicator of compromise)", "MITRE ATT&amp;CK", "UTC"):
         assert f"<dt>{term}</dt>" in g, term
 
@@ -282,3 +282,32 @@ def test_readme_documents_the_guide():
     section = readme[readme.index("## How to use the demo"):readme.index("## Why I made it")]
     for needle in ("holiday_photos_2025.jpg", "CF-001", "Check the chain here", "Pretend someone edited an entry", "1 critical"):
         assert needle in section, needle
+
+
+# ------------------------------------------------------------------ simplified layout
+def test_main_tabs_are_five_and_the_rest_are_folded_under_more_of_the_file():
+    html = (DASH / "index.html").read_text()
+    main = html[html.index('id="tabs"'):html.index('id="tabs-more"')]
+    assert re.findall(r'data-tab="(\w+)"', main) == ["guide", "case", "timeline", "findings", "files"]
+    more = html[html.index('id="more-tabs"'):html.index("</nav>")]
+    assert re.findall(r'data-tab="(\w+)"', more) == ["clues", "recovered", "custody", "traces", "attack"]
+    assert re.search(r'<div id="more-tabs"[^>]*\bhidden\b', html) and 'aria-expanded="false" aria-controls="more-tabs"' in html
+    js = (DASH / "app.js").read_text()
+    assert "MORE_TABS" in js and "function setMore" in js and "function visibleTabs" in js
+
+
+def test_case_page_shows_four_stamps_and_a_short_story_with_the_rest_behind_clicks():
+    html = (DASH / "index.html").read_text()
+    js = (DASH / "app.js").read_text()
+    assert 'id="kpi-more"' in html and 'id="kpis2"' in html and 'id="stats-more"' in html and 'id="story-more"' in html
+    assert "note-kpi" not in html and "note-tl" not in html and "note-chain" not in html     # decorative hand notes removed
+    assert 'class="why-fold" id="why"' in html                                               # personal note is a quiet fold
+    assert "SHOW = 6" in js and "i < 4 ? st : st2" in js
+    start = html[html.index('id="start-here"'):html.index('id="banner"')]
+    assert "btn-row" not in start and len(re.sub(r"<[^>]+>", " ", start).split()) < 30        # one short line, not a big sticky note
+
+
+def test_extra_findings_filters_sit_in_one_expander():
+    html = (DASH / "index.html").read_text()
+    tools = html[html.index('id="f-tools"'):html.index("</details>", html.index('id="f-tools"'))]
+    assert 'id="f-cat"' in tools and 'id="f-order"' in tools

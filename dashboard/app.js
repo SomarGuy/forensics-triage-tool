@@ -56,6 +56,7 @@
   // ------------------------------------------------------------------ tabs (manila folder tabs on the left spine)
   function goTab(name, noScroll) {
     if (TABS.indexOf(name) < 0) name = "case";
+    if (MORE_TABS.indexOf(name) >= 0) setMore(true);
     tab = name;
     TABS.forEach(function (t) {
       var on = t === name, btn = $("tab-" + t), pg = $("page-" + t);
@@ -64,17 +65,29 @@
     if (name === "timeline" && data) drawChart();           // the canvas has no size while its page is hidden
     if (!noScroll) { var top = $("sheet").getBoundingClientRect().top + window.pageYOffset - 10; if (window.pageYOffset > top) window.scrollTo(0, Math.max(0, top)); }
   }
+  var MORE_TABS = ["clues", "recovered", "custody", "traces", "attack"];
+  function setMore(open) {
+    var box = $("more-tabs"), btn = $("tabs-more");
+    box.hidden = !open; btn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  function visibleTabs() {
+    var all = document.querySelectorAll(".spine button.tab"), out = [];
+    for (var i = 0; i < all.length; i++) if (!all[i].closest("[hidden]")) out.push(all[i]);
+    return out;
+  }
   function wireTabs() {
-    var btns = $("tabs").querySelectorAll("button.tab");
-    for (var i = 0; i < btns.length; i++) (function (b, idx) {
+    $("tabs-more").addEventListener("click", function () { setMore($("more-tabs").hidden); });
+    var btns = document.querySelectorAll(".spine button.tab");
+    for (var i = 0; i < btns.length; i++) (function (b) {
       b.addEventListener("click", function () { goTab(b.getAttribute("data-tab")); });
       b.addEventListener("keydown", function (e) {
         var d = (e.key === "ArrowDown" || e.key === "ArrowRight") ? 1 : (e.key === "ArrowUp" || e.key === "ArrowLeft") ? -1 : e.key === "Home" ? -99 : e.key === "End" ? 99 : 0;
         if (!d) return; e.preventDefault();
-        var n = Math.abs(d) === 99 ? (d < 0 ? 0 : btns.length - 1) : (idx + d + btns.length) % btns.length;
-        btns[n].focus(); goTab(btns[n].getAttribute("data-tab"), true);
+        var vis = visibleTabs(), idx = vis.indexOf(b);
+        var n = Math.abs(d) === 99 ? (d < 0 ? 0 : vis.length - 1) : (idx + d + vis.length) % vis.length;
+        vis[n].focus(); goTab(vis[n].getAttribute("data-tab"), true);
       });
-    })(btns[i], i);
+    })(btns[i]);
   }
 
   // ------------------------------------------------------------------ DOM helpers
@@ -208,10 +221,11 @@
     SEV.forEach(function (sev) {
       box.appendChild(kpi(sc[sev] || 0, sev, { sev: sev, id: "kpi-" + sev, onclick: function () { toggleSev(sev); goTab("findings"); } }));
     });
-    box.appendChild(kpi(s.flagged_files + " / " + s.files, "files look odd", { small: true, onclick: function () { state.fl.only = true; $("fl-only").checked = true; renderFiles(); goTab("files"); } }));
-    box.appendChild(kpi((s.carved_complete || 0) + (s.carved_partial ? " + " + s.carved_partial : ""), "deleted files found (whole + partial)", { small: true, onclick: function () { goTab("recovered"); } }));
+    var box2 = $("kpis2"); clear(box2);
+    box2.appendChild(kpi(s.flagged_files + " / " + s.files, "files look odd", { small: true, onclick: function () { state.fl.only = true; $("fl-only").checked = true; renderFiles(); goTab("files"); } }));
+    box2.appendChild(kpi((s.carved_complete || 0) + (s.carved_partial ? " + " + s.carved_partial : ""), "deleted files found (whole + partial)", { small: true, onclick: function () { goTab("recovered"); } }));
     var ok = data.integrity.ok && data.integrity.custody_chain_ok;
-    box.appendChild(kpi(ok ? "UNCHANGED" : "CHANGED", "evidence", { sev: ok ? "ok" : "bad", small: true, onclick: function () { goTab("custody"); } }));
+    box2.appendChild(kpi(ok ? "UNCHANGED" : "CHANGED", "evidence", { sev: ok ? "ok" : "bad", small: true, onclick: function () { goTab("custody"); } }));
     syncKpis();
   }
   function syncKpis() {
@@ -230,10 +244,10 @@
     row("Evidence root", m.evidence_root || "n/a");
     row("Incident window", data.window.start + " → " + data.window.end);
     row("Did it change?", data.integrity.ok ? "No. " + num(data.integrity.before.files || 0) + " files hashed before and after" : "YES, during analysis");
-    var st = $("case-stats"); clear(st);
+    var st = $("case-stats"), st2 = $("case-stats2"); clear(st); clear(st2);
     [[s.files, "files"], [bytes(s.bytes), "of evidence"], [s.findings, "findings"], [s.known_bad, "known-bad files"], [s.signature_mismatches, "files in disguise"],
      [s.timestomp_likely, "faked dates"], [s.iocs + " (" + s.iocs_external + " outside)", "clues"], [s.usb_devices, "USB sticks"], [s.browser_visits, "browser visits"], [s.techniques, "ATT&CK techniques"]
-    ].forEach(function (p) { st.appendChild(h("div", { class: "stat" }, [h("b", { text: String(p[0]) }), h("span", { text: p[1] })])); });
+    ].forEach(function (p, i) { (i < 4 ? st : st2).appendChild(h("div", { class: "stat" }, [h("b", { text: String(p[0]) }), h("span", { text: p[1] })])); });
   }
   function gapText(ms) {
     var m = Math.round(ms / 60000), d = Math.floor(m / 1440), hh = Math.floor((m % 1440) / 60), mm = m % 60;
@@ -252,6 +266,18 @@
       prev = n.ms;
       ol.appendChild(li);
     });
+    var items = ol.children, SHOW = 6, more = $("story-more");
+    if (items.length > SHOW + 1) {
+      for (var i = SHOW; i < items.length; i++) items[i].hidden = true;
+      more.hidden = false; more.textContent = "Show the other " + (items.length - SHOW);
+      more.setAttribute("aria-expanded", "false");
+      more.onclick = function () {
+        var open = more.getAttribute("aria-expanded") !== "true";
+        for (var j = SHOW; j < items.length; j++) items[j].hidden = !open;
+        more.setAttribute("aria-expanded", open ? "true" : "false");
+        more.textContent = open ? "Show fewer" : "Show the other " + (items.length - SHOW);
+      };
+    } else more.hidden = true;
   }
 
   // ------------------------------------------------------------------ timeline
@@ -593,7 +619,7 @@
         "Not one file differs in content, size, modified time or mode. Custody log: " + ig.custody_chain_note + "." })]));
     var mc = $("manifests"); clear(mc);
     [["Before I started", ig.before], ["After I finished", ig.after]].forEach(function (p) {
-      mc.appendChild(h("div", { class: "mcard" }, [h("h4", { text: p[0] }), h("div", { text: num(p[1].files || 0) + " files, " + num(p[1].bytes || 0) + " bytes" }),
+      mc.appendChild(h("div", { class: "mcard" }, [h("h3", { text: p[0] }), h("div", { text: num(p[1].files || 0) + " files, " + num(p[1].bytes || 0) + " bytes" }),
         h("div", { class: "hash wrap-any", text: "manifest SHA-256 " + (p[1].manifest_sha256 || "n/a") })]));
     });
     $("integrity-method").textContent = ig.method || "";
